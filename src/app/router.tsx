@@ -6,8 +6,9 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
-import { type ComponentType, useEffect } from "react";
+import { type ComponentType, useEffect, useState } from "react";
 import { IdeWorkbench } from "../features/ide/IdeWorkbench";
+import { ControlsShowcase } from "../features/showcase/ControlsShowcase";
 import { TechnicalRibbonPage } from "../features/technical-ribbon/TechnicalRibbonPage";
 import "../features/ide/idePreset";
 import { MinimalWorkbench } from "../features/minimal/MinimalWorkbench";
@@ -19,6 +20,10 @@ import "../features/studio/studioPreset";
 import "../features/technical-ribbon/technicalRibbonLayout";
 import { resolveFeaturesOrThrow } from "../workbench/features";
 import { globalPresets } from "../workbench/layouts";
+import {
+  loadWorkspaceState,
+  saveWorkspaceState,
+} from "../workbench/persistence";
 import type { FeatureId } from "../workbench/types";
 import { workbenchConfig } from "./workbench.config";
 
@@ -92,14 +97,30 @@ function PresetSwitcher() {
           {id}
         </Link>
       ))}
+      <Link
+        to="/demo/controls"
+        className="rounded-sm px-2 py-0.5 text-[var(--wb-text-muted)] hover:bg-[var(--wb-surface-hover)] hover:text-[var(--wb-text)]"
+        activeProps={{
+          className:
+            "rounded-sm px-2 py-0.5 bg-[var(--wb-surface-hover)] text-[var(--wb-text)]",
+        }}
+      >
+        Controls
+      </Link>
     </nav>
   );
 }
 
 function RootLayout() {
+  // Stored theme wins over the manifest default (sync init, no flash handling).
+  const [theme] = useState(
+    () => loadWorkspaceState().theme ?? workbenchConfig.theme,
+  );
   useEffect(() => {
-    document.documentElement.dataset.theme = workbenchConfig.theme;
-  }, []);
+    document.documentElement.dataset.theme = theme;
+    // Write the applied theme through so a stored value stays authoritative.
+    saveWorkspaceState({ theme });
+  }, [theme]);
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden">
       <PresetSwitcher />
@@ -110,7 +131,12 @@ function RootLayout() {
   );
 }
 
-/** Resolve a preset id to its component with default features. */
+/**
+ * Resolve a preset id to its component with stored with/without
+ * overrides layered over the manifest. Stored combos still validate
+ * fail-fast: a corrupt stored combo falls back to the manifest with a
+ * console warning, never a broken screen.
+ */
 function PresetView({ presetId }: { presetId: string }) {
   const preset = globalPresets.get(presetId);
   if (!preset) {
@@ -129,8 +155,23 @@ function PresetView({ presetId }: { presetId: string }) {
       `Preset "${presetId}" has no preview component. Register one in presetComponents.`,
     );
   }
-  // Incoherent with/without combinations fail fast with a readable error.
-  const features = resolveFeaturesOrThrow(preset, workbenchConfig);
+  // Synchronous storage read per render: route renders are low-frequency.
+  const stored = loadWorkspaceState();
+  let features: FeatureId[];
+  try {
+    // Incoherent with/without combinations fail fast with a readable error.
+    features = resolveFeaturesOrThrow(preset, {
+      with: stored.with ?? workbenchConfig.with,
+      without: stored.without ?? workbenchConfig.without,
+    });
+  } catch (error) {
+    console.warn(
+      `Ignoring stored feature overrides for preset "${preset.id}": ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    features = resolveFeaturesOrThrow(preset, workbenchConfig);
+  }
   return (
     <PreviewFrame>
       <Component features={features} />
@@ -138,13 +179,35 @@ function PresetView({ presetId }: { presetId: string }) {
   );
 }
 
-/** Main route: renders the manifest's layout with resolved features. */
+/**
+ * Main route: renders the stored active layout when it resolves to a
+ * registered preset, else the manifest layout. Unknown stored ids fall
+ * back to the manifest with a warning, never a broken screen.
+ */
 function IndexPage() {
-  return <PresetView presetId={workbenchConfig.layout} />;
+  const storedLayoutId = loadWorkspaceState().layoutId;
+  let presetId: string = workbenchConfig.layout;
+  if (storedLayoutId !== undefined) {
+    if (globalPresets.has(storedLayoutId)) {
+      presetId = storedLayoutId;
+    } else {
+      console.warn(
+        `Ignoring stored layout "${storedLayoutId}": unknown preset. Falling back to manifest layout "${workbenchConfig.layout}".`,
+      );
+    }
+  }
+  return <PresetView presetId={presetId} />;
 }
 
 function PresetPreviewPage() {
   const { presetId } = presetPreviewRoute.useParams();
+  useEffect(() => {
+    // The previewed preset becomes the active layout (direct write:
+    // route visits are low-frequency user actions).
+    if (globalPresets.has(presetId)) {
+      saveWorkspaceState({ layoutId: presetId });
+    }
+  }, [presetId]);
   return <PresetView presetId={presetId} />;
 }
 
@@ -162,7 +225,17 @@ const presetPreviewRoute = createRoute({
   component: PresetPreviewPage,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, presetPreviewRoute]);
+const demoControlsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/demo/controls",
+  component: ControlsShowcase,
+});
+
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  presetPreviewRoute,
+  demoControlsRoute,
+]);
 
 const router = createRouter({ routeTree });
 
