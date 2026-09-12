@@ -5,7 +5,44 @@ import {
   useMemo,
   useState,
 } from "react";
+import { loadWorkspaceState, saveWorkspaceState } from "./persistence";
 import type { StatusItemDefinition } from "./types";
+
+const hydratedStatusRegistries = new WeakSet<object>();
+
+/** Apply stored toggles once per registry; unknown ids are ignored. */
+function hydrateStatusToggles(registry: StatusRegistry): void {
+  if (hydratedStatusRegistries.has(registry)) {
+    return;
+  }
+  hydratedStatusRegistries.add(registry);
+  const stored = loadWorkspaceState().statusToggles;
+  if (!stored) {
+    return;
+  }
+  for (const [id, active] of Object.entries(stored)) {
+    try {
+      if (registry.has(id)) {
+        registry.setActive(id, active);
+      }
+    } catch {
+      // Ignore entries that no longer resolve to a registered item.
+    }
+  }
+}
+
+/** Persist the full toggle snapshot; user toggles are low-frequency. */
+function persistStatusToggles(registry: StatusRegistry): void {
+  const snapshot: Record<string, boolean> = {};
+  for (const item of registry.list()) {
+    try {
+      snapshot[item.id] = registry.isActive(item.id);
+    } catch {
+      // Skip entries that fail to read; never break the toggle path.
+    }
+  }
+  saveWorkspaceState({ statusToggles: snapshot });
+}
 
 export interface StatusRegistry {
   registerStatusItem(item: StatusItemDefinition): void;
@@ -88,6 +125,12 @@ export function StatusProvider({
   const activeRegistry = useMemo(() => registry ?? globalStatus, [registry]);
   const [, setVersion] = useState(0);
 
+  // Synchronous hydration on init: storage is read before the first
+  // render that consumes toggle state.
+  useMemo(() => {
+    hydrateStatusToggles(activeRegistry);
+  }, [activeRegistry]);
+
   // Plain object (no memo): registry reads are live, and setVersion
   // re-renders the provider so consumers see state changes.
   const value: StatusApi = {
@@ -96,10 +139,12 @@ export function StatusProvider({
     isActive: (id: string) => activeRegistry.isActive(id),
     toggle: (id: string) => {
       activeRegistry.toggle(id);
+      persistStatusToggles(activeRegistry);
       setVersion((v) => v + 1);
     },
     setActive: (id: string, next: boolean) => {
       activeRegistry.setActive(id, next);
+      persistStatusToggles(activeRegistry);
       setVersion((v) => v + 1);
     },
     getValue: (id: string) => activeRegistry.getValue(id),

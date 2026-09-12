@@ -5,7 +5,48 @@ import {
   useMemo,
   useState,
 } from "react";
+import { loadWorkspaceState, saveWorkspaceState } from "./persistence";
 import type { DockPosition, WidgetDefinition } from "./types";
+
+const hydratedWidgetRegistries = new WeakSet<object>();
+
+/** Apply stored visibility once per registry; unknown ids are ignored. */
+function hydrateWidgetVisibility(registry: WidgetRegistry): void {
+  if (hydratedWidgetRegistries.has(registry)) {
+    return;
+  }
+  hydratedWidgetRegistries.add(registry);
+  const stored = loadWorkspaceState().widgetsVisible;
+  if (!stored) {
+    return;
+  }
+  for (const [id, visible] of Object.entries(stored)) {
+    try {
+      if (registry.has(id)) {
+        if (visible) {
+          registry.show(id);
+        } else {
+          registry.hide(id);
+        }
+      }
+    } catch {
+      // Ignore entries that no longer resolve to a registered widget.
+    }
+  }
+}
+
+/** Persist the full visibility snapshot; user toggles are low-frequency. */
+function persistWidgetVisibility(registry: WidgetRegistry): void {
+  const snapshot: Record<string, boolean> = {};
+  for (const def of registry.list()) {
+    try {
+      snapshot[def.id] = registry.isVisible(def.id);
+    } catch {
+      // Skip entries that fail to read; never break the toggle path.
+    }
+  }
+  saveWorkspaceState({ widgetsVisible: snapshot });
+}
 
 export interface WidgetRegistry {
   registerWidget(def: WidgetDefinition): void;
@@ -88,6 +129,12 @@ export function WidgetProvider({
   const activeRegistry = useMemo(() => registry ?? globalWidgets, [registry]);
   const [, setVersion] = useState(0);
 
+  // Synchronous hydration on init: no first-paint flash strategy beyond
+  // reading storage before the first render that consumes visibility.
+  useMemo(() => {
+    hydrateWidgetVisibility(activeRegistry);
+  }, [activeRegistry]);
+
   // Plain object (no memo): registry reads are live, and setVersion
   // re-renders the provider so consumers see visibility changes.
   const value: WidgetApi = {
@@ -96,14 +143,17 @@ export function WidgetProvider({
     isVisible: (id: string) => activeRegistry.isVisible(id),
     show: (id: string) => {
       activeRegistry.show(id);
+      persistWidgetVisibility(activeRegistry);
       setVersion((v) => v + 1);
     },
     hide: (id: string) => {
       activeRegistry.hide(id);
+      persistWidgetVisibility(activeRegistry);
       setVersion((v) => v + 1);
     },
     toggle: (id: string) => {
       activeRegistry.toggle(id);
+      persistWidgetVisibility(activeRegistry);
       setVersion((v) => v + 1);
     },
   };
