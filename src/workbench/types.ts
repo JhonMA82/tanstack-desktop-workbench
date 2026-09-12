@@ -113,7 +113,9 @@ export type FeatureId =
   | "alert-strip"
   | "event-stream"
   | "system-summary"
-  | "source-nav";
+  | "source-nav"
+  | "step-rail"
+  | "wizard-nav";
 
 /** Visual slot of a layout preset: where capabilities are composed. */
 export type LayoutSlotId = "top" | "left" | "center" | "right" | "bottom";

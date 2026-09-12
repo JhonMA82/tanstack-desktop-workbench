@@ -32,6 +32,8 @@ export const KNOWN_FEATURES: readonly FeatureId[] = [
   "event-stream",
   "system-summary",
   "source-nav",
+  "step-rail",
+  "wizard-nav",
 ];
 
 /**
@@ -79,6 +81,8 @@ const FEATURE_CAPABILITIES: Record<FeatureId, readonly string[]> = {
   "event-stream": ["event-stream"],
   "system-summary": ["system-summary"],
   "source-nav": ["source-nav"],
+  "step-rail": ["step-rail"],
+  "wizard-nav": ["wizard-nav"],
 };
 
 export interface FeatureOverrides {

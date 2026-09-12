@@ -18,6 +18,8 @@ import { MonitoringWorkbench } from "../features/monitoring/MonitoringWorkbench"
 import "../features/monitoring/monitoringPreset";
 import { OperatorWorkbench } from "../features/operator/OperatorWorkbench";
 import "../features/operator/operatorPreset";
+import { SetupWorkbench } from "../features/setup/SetupWorkbench";
+import "../features/setup/setupPreset";
 import { StudioWorkbench } from "../features/studio/StudioWorkbench";
 import "../features/studio/studioPreset";
 import "../features/technical-ribbon/technicalRibbonLayout";
@@ -47,6 +49,7 @@ const presetComponents: Record<string, PresetComponent> = {
   studio: StudioWorkbench,
   operator: OperatorWorkbench,
   monitoring: MonitoringWorkbench,
+  setup: SetupWorkbench,
   minimal: MinimalWorkbench,
 };
 
@@ -56,6 +59,7 @@ const previewPresets = [
   "studio",
   "operator",
   "monitoring",
+  "setup",
   "minimal",
 ];
 

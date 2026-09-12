@@ -1,6 +1,6 @@
 # Preset catalog
 
-Six declarative layout presets compose the same shell. A preset declares
+Seven declarative layout presets compose the same shell. A preset declares
 **composition** (which capability ids live in each visual slot plus default
 features); it never implements domain logic. Features declare **capabilities**
 (what the app can do). The manifest picks one preset and adjusts it with
@@ -85,6 +85,28 @@ features); it never implements domain logic. Features declare **capabilities**
 Observe-only: no controls, no inspector, no ribbon. The tile wall is
 the workspace; the alert strip stays visible above it at all times.
 
+### setup
+
+```text
+┌──────────────────────────────────────────────────────┐
+│ Toolbar                                              │
+├──────────┬───────────────────────────────────────────┤
+│ Step     │                                         │
+│ rail     │           Step content                  │
+│          │                                         │
+├──────────┴───────────────────────────────────────────┤
+│ Wizard nav (Back / Next)                             │
+├──────────────────────────────────────────────────────┤
+│ Status bar                                           │
+└──────────────────────────────────────────────────────┘
+```
+
+Linear and step-driven: the rail shows numbered steps
+(done/current/todo), the center renders exactly one step body, and the
+footer moves Back/Next (or Finish). No docked panels, no inspector, no
+ribbon. Branching and conditional steps are out of scope: the flow is a
+fixed ordered list (see "setup: when a linear wizard fits" below).
+
 ### minimal
 
 ```text
@@ -107,6 +129,7 @@ the workspace; the alert strip stays visible above it at all times.
 | studio | workspace-selector, toolbar, hierarchy, explorer, viewport, inspector, timeline, bottom-panel |
 | operator | system-status, navigation, viewport, controls, alarms, notifications, statusbar |
 | monitoring | system-summary, source-nav, tile-wall, viewport, alert-strip, event-stream, statusbar |
+| setup | toolbar, step-rail, viewport, wizard-nav, statusbar |
 | minimal | toolbar, viewport, statusbar |
 
 ## Feature catalog
@@ -117,7 +140,8 @@ Ribbon family: `ribbon`, `tool-rail`, `command-bar`, `command-palette`,
 `bottom-panel`, `console`, `output`, `timeline`. Operation: `system-status`,
 `controls`, `alarms`, `notifications`. Monitoring (observe-only):
 `system-summary`, `source-nav`, `tile-wall`, `alert-strip`,
-`event-stream`. Core: `viewport` (load-bearing),
+`event-stream`. Wizard (step-driven):
+`step-rail`, `wizard-nav`. Core: `viewport` (load-bearing),
 `statusbar`.
 
 ## with / without semantics
@@ -154,6 +178,29 @@ Both presets watch a system, but only one touches it:
 If the screen needs a single button that changes the system, it is an
 operator screen.
 
+## setup: when a linear wizard fits
+
+Pick **setup** for first-run, onboarding, and guided configuration flows:
+one task per step, explicit Back/Next, per-step validation gating Next,
+a review step summarizing the demo entries, and a terminal Done step with
+a restart action. It is spatially distinct from every other preset: a step
+rail plus one step body plus a wizard footer, never docked panels.
+
+Rules:
+
+- Linear only: the step list is fixed and ordered. `useWizard` blocks
+  `next` while the current step's `canProceed` is false, and `goTo`
+  revisits visited steps plus the immediate next one (no skipping
+  ahead). Branching or conditional steps are explicitly out of scope;
+  a future change adds them with a new ADR, not by bending this core.
+- Enter never advances: step bodies hold text inputs, textareas, and
+  selects, so navigation is explicit Back/Next (and rail revisits)
+  only. Step forms prevent implicit submits.
+- The generic machinery (`useWizard`, `WizardShell` in
+  `src/components/workbench/wizard/`) holds zero domain knowledge;
+  the demo flow (`Connect → Configure → Review → Done`) lives in
+  `src/features/setup/` and keeps demo data only.
+
 ## Manifest reference
 
 `src/app/workbench.config.ts`:
@@ -161,7 +208,7 @@ operator screen.
 ```ts
 {
   appName: "My App",
-  layout: "ide", // technical-ribbon | ide | studio | operator | monitoring | minimal
+  layout: "ide", // technical-ribbon | ide | studio | operator | monitoring | setup | minimal
   with: ["notifications"], // extras on top of the preset defaults
   without: ["secondary-sidebar"], // removals that stay coherent
   theme: "ocstudio",

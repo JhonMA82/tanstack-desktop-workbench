@@ -7,6 +7,8 @@ import "../features/monitoring/monitoringPreset";
 import { monitoringPreset } from "../features/monitoring/monitoringPreset";
 import "../features/operator/operatorPreset";
 import { operatorPreset } from "../features/operator/operatorPreset";
+import "../features/setup/setupPreset";
+import { setupPreset } from "../features/setup/setupPreset";
 import "../features/studio/studioPreset";
 import { studioPreset } from "../features/studio/studioPreset";
 import "../features/technical-ribbon/technicalRibbonLayout";
@@ -23,6 +25,7 @@ const allPresets: LayoutPreset[] = [
   studioPreset,
   operatorPreset,
   monitoringPreset,
+  setupPreset,
   minimalPreset,
 ];
 
@@ -66,6 +69,7 @@ const expectedDefaults: Record<string, FeatureId[]> = {
     "event-stream",
     "statusbar",
   ],
+  setup: ["toolbar", "step-rail", "viewport", "wizard-nav", "statusbar"],
   minimal: ["toolbar", "viewport", "statusbar"],
 };
 
@@ -80,13 +84,14 @@ describe("preset defaults", () => {
 });
 
 describe("preset registration", () => {
-  it("registers all six presets and no legacy ids", () => {
+  it("registers all seven presets and no legacy ids", () => {
     for (const id of [
       "technical-ribbon",
       "ide",
       "studio",
       "operator",
       "monitoring",
+      "setup",
       "minimal",
     ]) {
       expect(globalPresets.has(id)).toBe(true);
@@ -109,6 +114,8 @@ describe("new feature ids", () => {
     "event-stream",
     "system-summary",
     "source-nav",
+    "step-rail",
+    "wizard-nav",
   ];
 
   it("recognizes every new feature id", () => {

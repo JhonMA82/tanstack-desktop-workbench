@@ -14,6 +14,7 @@ export type WorkbenchLayoutId =
   | "studio"
   | "operator"
   | "monitoring"
+  | "setup"
   | "minimal";
 
 /** Theme id (see src/styles/themes/*.css). Applied to <html> data-theme. */
