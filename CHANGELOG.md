@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-12
+
+### Added
+
+- Global toasts: capped stack with info/success/warning/error tones,
+  auto-dismiss (errors sticky), pause on hover and action buttons that
+  execute registered commands. Mounted once in the shell; recent toasts
+  also surface in the Notifications demo widget.
+- Viewport pan/zoom: `usePanZoom` hook (cursor-anchored wheel zoom,
+  drag pan, `+`/`-`/`0` keys, 0.2-4 clamp) wired opt-in into the generic
+  `Viewport`, with zoom controls overlay and live readout demo.
+- Test suites for toast store logic and pan/zoom math (96 tests).
+
 ## [0.2.0] - 2026-09-12
 
 ### Added
@@ -58,6 +71,8 @@ reference interface.
 - Test suites for every registry, feature resolution and preset defaults
   (53 tests).
 
-[Unreleased]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.1.0...v0.2.0
 [0.2.0]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/JhonMA82/tanstack-desktop-workbench/releases/tag/v0.1.0
