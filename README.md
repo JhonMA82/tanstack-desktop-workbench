@@ -100,9 +100,14 @@ Data-driven: `RibbonTab[]` (`tabs -> groups -> tool ids`), first tool per group 
 
 ## 9. Layouts
 
-`registerLayout({ id, name, railTools?, rightWidgets?, bottomWidgets? })`.
-`technical-ribbon` is the first preset; `ide / studio / operator / monitoring / setup / minimal` arrive in Phase B without shell edits.
-`globalLayouts.setActive(id)` switches; unknown ids throw.
+`LayoutPreset` (`slots` + `defaultFeatures`, see `src/workbench/types.ts`) is the
+single canonical model: a preset declares composition (which capability ids
+live in each `top | left | center | right | bottom` slot plus default
+features); it never implements domain logic. Seven presets compose the same
+shell: `technical-ribbon`, `ide`, `studio`, `operator`, `monitoring`,
+`setup`, `minimal` (see `docs/presets.md`). `LayoutDefinition`
+(`railTools` / `rightWidgets` / `bottomWidgets`) survives only as a derived
+legacy view (`globalLayouts` is a thin adapter over the preset store).
 
 ## 10. Themes
 
@@ -120,6 +125,12 @@ the same `--wb-*` set, so a missing token fails the suite.
 
 ## 11. How to add a widget
 
+```bash
+bun run generate:widget -- telemetry --dock right --feature myapp
+```
+
+Or manually:
+
 ```tsx
 // src/features/myapp/myWidgets.ts
 import { globalWidgets } from "../../workbench/widgets";
@@ -136,6 +147,12 @@ globalWidgets.registerWidget({
 
 ## 12. How to add a tool
 
+```bash
+bun run generate:tool -- measure --command measure.distance --group inspect --feature myapp
+```
+
+Or manually:
+
 ```tsx
 globalTools.registerTool({
   id: "measure",
@@ -151,21 +168,46 @@ globalCommands.registerCommand("measure.distance", runMeasure, { label: "Measure
 
 ## 13. How to add a command
 
+```bash
+bun run generate:command -- reset-view --feature myapp --shortcut R
+```
+
+Or manually:
+
 ```tsx
 globalCommands.registerCommand("view.reset", resetCamera, { label: "Reset view", shortcut: "R" });
 ```
 
 ## 14. How to create a layout
 
-```tsx
-globalLayouts.registerLayout({
-  id: "monitoring",
-  name: "Monitoring",
-  railTools: ["select", "pan"],
-  rightWidgets: ["jobs", "notifications"],
-  bottomWidgets: ["console"],
-});
+```bash
+bun run generate:preset -- monitoring
 ```
+
+Scaffolds `src/features/<name>/<name>Preset.ts` with a coherent
+`LayoutPreset` (`slots` + `defaultFeatures`) and a guarded
+`register<Name>Preset()`. Then wire the composition manually: create the
+workbench component, add the id to `WorkbenchLayoutId` and one entry to
+`presetComponents` in `src/app/router.tsx` (explicit on purpose).
+
+## Scaffolding a new application
+
+```bash
+bun run generate:project -- printnc-control \
+  --preset technical-ribbon --theme ocstudio --without inspector
+
+cd ../printnc-control
+
+bun run generate:feature -- machine-control
+bun run generate:command -- connect-machine --feature machine-control
+bun run generate:widget -- telemetry --dock right --feature machine-control
+bun run generate:tool -- connect --command connect-machine --group machine --feature machine-control
+```
+
+`generate:project` validates preset/theme/features against the real
+registries before writing, stages in a sibling temp dir, and moves to the
+destination only at the end (`--force` replaces just projects carrying a
+valid `.boilerplate.json` marker). Full reference: `docs/scaffolding.md`.
 
 ## Layout vs Features
 
@@ -192,9 +234,10 @@ slots of different presets.
 
 ## App manifest
 
-`src/app/workbench.config.ts` is the declarative generation metadata (cloning
-
-- editing this file IS the generator — there is no CLI):
+`src/app/workbench.config.ts` is the declarative application manifest
+(`appName`, `layout`, `theme`, `with`, `without`). `generate:project` is
+the materializer; editing values here is normal configuration. Full
+generator reference: `docs/scaffolding.md`.
 
 ```ts
 export const workbenchConfig = {
@@ -207,6 +250,39 @@ export const workbenchConfig = {
 ```
 
 The main route renders the manifest's layout with resolved features.
+
+## AI context
+
+`docs/ai/generated-context.md` is generated from the real repo state — never
+edited by hand. It tells an agent what app this is, which preset/theme is
+active, which features resolved, and what is registered (widgets, commands,
+tools, status items, presets). Minimal reading path: `AGENTS.md` →
+generated context → `docs/ai/project-map.yaml` → at most 1–2 canonical
+examples → the files directly affected.
+
+```bash
+bun run ai:context        # regenerate after config/extension changes
+bun run ai:context:check  # fail when the file drifts (CI gate)
+```
+
+Every generator (`generate:project`, `generate:feature`, `generate:widget`,
+`generate:command`, `generate:tool`, `generate:status-item`,
+`generate:preset`) refreshes the context automatically on success.
+
+## Validation
+
+```bash
+bun run validate  # lint + typecheck + tests + validate:architecture +
+                  # validate:workbench + ai:context:check + build
+```
+
+Targeted checks: `bun run validate:architecture` (core/feature isolation,
+`--wb-*` tokens, command delegation, duplicate ids, preset resolution, theme
+parity, template tokens) and `bun run validate:workbench` (manifest against
+the real registries). `bun run self-test:scaffolding` materializes temp
+projects and verifies real generation contracts. A change is done only when
+`bun run validate` is green — a compiling project with stale AI context or
+an invalid reference is NOT done.
 
 ## Workspace persistence
 
@@ -377,4 +453,13 @@ const menu: MenuItem[] = [
 | `bun run build` | Production build |
 | `bun run typecheck` | `tsc --noEmit` |
 | `bun run lint` | `biome ci .` |
-| `bun test` | Unit tests (registries) |
+| `bun test` | Unit + scaffolding tests |
+| `bun run generate:project -- <name> --preset <id> --theme <id>` | Materialize a derived app |
+| `bun run generate:feature -- <name>` | Scaffold a feature vertical |
+| `bun run generate:widget -- <name> --dock right` | Scaffold a widget |
+| `bun run generate:command -- <name>` | Scaffold a command |
+| `bun run generate:tool -- <name> --command <id>` | Scaffold a tool |
+| `bun run ai:context` / `ai:context:check` | Generate / gate AI context |
+| `bun run validate` | Full gate (lint, types, tests, validators, context, build) |
+| `bun run validate:architecture` / `validate:workbench` | Targeted validators |
+| `bun run self-test:scaffolding` | Temp-project generation contracts |

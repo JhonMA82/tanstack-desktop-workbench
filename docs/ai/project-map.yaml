@@ -1,0 +1,64 @@
+# Stable machine-readable map of the Desktop Workbench boilerplate.
+# Curated by hand; instance state lives in generated-context.md (never here).
+version: 1
+architecture:
+  shell: src/components/workbench/shell/**
+  viewport: src/components/workbench/viewport/**
+  primitives: src/components/workbench/primitives/**
+  workbench_model: src/workbench/**
+  features: src/features/**
+  app_manifest: src/app/workbench.config.ts
+  themes: src/styles/themes/**
+paths:
+  presets: src/features/*/*Preset.ts
+  ribbon: src/features/*/*Ribbon.ts
+  commands: src/features/*/*Commands.ts + src/workbench/commands.tsx
+  tools: src/features/*/*Tools.ts + src/features/*/*Tools/** + src/workbench/tools.tsx
+  widgets: src/features/*/*Widgets.ts + src/workbench/widgets.tsx
+  status_items: src/features/*/*Status.ts + src/workbench/status.tsx
+  runtime: src/workbench/runtime.ts
+  registries:
+    - src/workbench/commands.tsx
+    - src/workbench/widgets.tsx
+    - src/workbench/tools.tsx
+    - src/workbench/status.tsx
+    - src/workbench/features.ts
+    - src/workbench/layouts.ts
+protected_core:
+  - src/components/workbench/**
+  - src/workbench/**
+extension_points:
+  - src/features/**
+  - src/components/workbench/primitives/** (shared controls library: use it for forms/tables/dialogs, never create parallel controls; catalog in generated-context.md "Controls library")
+  - src/styles/themes/**
+  - src/app/workbench.config.ts
+  - registries and runtime extension APIs (registerCommand/registerWidget/registerTool/registerStatusItem/registerFeature/createWorkbenchRuntime)
+generator_commands:
+  - bun run generate:project -- <name> --preset <id> --theme <id> [--with a,b] [--without c] [--force] [--install] [--git]
+  - bun run generate:feature -- <name> [--capability <slot>] [--force]
+  - bun run generate:widget -- <name> --dock left|right|bottom|floating|hidden [--title T] [--feature F]
+  - bun run generate:command -- <name> [--feature F]
+  - bun run generate:tool -- <name> --command <id> [--group G] [--feature F]
+  - bun run generate:status-item -- <name>
+  - bun run generate:preset -- <name>
+  - bun run ai:context
+  - bun run ai:context:check
+invariants:
+  - LayoutPreset is the canonical layout model; LayoutDefinition is a legacy derived view only.
+  - App/domain code lives in src/features/**; core never imports features.
+  - UI controls come from src/components/workbench/primitives/**; never create parallel controls in src/features/** (enforced by validate:architecture).
+  - One command id executes everywhere (Ribbon, shortcuts, palette, menus); never duplicate command logic inside Ribbon/ToolRail.
+  - Widgets render via WidgetHost; never hardcode widgets inside the Inspector.
+  - Tools reference a registered command id; tools never embed command logic.
+  - Workbench visuals use --wb-* theme tokens only.
+  - with/without must be known feature ids, never overlap, and never disable load-bearing features.
+  - Preset ids, themes, and features come from the canonical registries; generators never keep parallel lists.
+tooling:
+  lint: bun run lint
+  typecheck: bun x tsc --noEmit
+  tests: bun test
+  validate: bun run validate
+  validate_architecture: bun run validate:architecture
+  validate_workbench: bun run validate:workbench
+  self_test: bun run self-test:scaffolding
+  ai_context_check: bun run ai:context:check

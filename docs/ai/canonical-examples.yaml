@@ -1,0 +1,62 @@
+# Curated canonical examples: load at most 1-2 per task, never all of them.
+# Instance state lives in generated-context.md; these are stable references.
+examples:
+  - id: preset-technical-ribbon
+    kind: preset
+    when: cad/cnc/technical ribbon work
+    path: src/features/technical-ribbon/technicalRibbonPreset.ts
+  - id: preset-ide
+    kind: preset
+    when: editor/explorer/panel work
+    path: src/features/ide/idePreset.ts
+  - id: preset-monitoring
+    kind: preset
+    when: telemetry/tile-wall/alert observability work
+    path: src/features/monitoring/monitoringPreset.ts
+  - id: preset-setup
+    kind: preset
+    when: wizard/setup/configuration flows
+    path: src/features/setup/setupPreset.ts
+  - id: canonical-widget
+    kind: widget
+    when: adding a dockable panel
+    path: src/features/technical-ribbon/technicalRibbonWidgets.ts
+    note: register explicitly; render via WidgetHost; never edit WorkbenchShell.
+  - id: canonical-command-tool-pair
+    kind: command-tool
+    when: adding an action plus its toolbar/ribbon entry
+    paths:
+      - src/features/technical-ribbon/technicalRibbonCommands.ts
+      - src/features/technical-ribbon/technicalRibbonTools/homeTools.ts
+    note: the tool resolves the command id; command logic lives once in the command.
+  - id: canonical-theme
+    kind: theme
+    when: styling or adding theme tokens
+    path: src/styles/themes/ocstudio.css
+    note: use --wb-* tokens only; keep parity across themes.
+  - id: controls-form
+    kind: controls-recipe
+    when: building a form (fields, validation hints, action row)
+    paths:
+    - src/components/workbench/primitives/Fields.tsx
+    - src/components/workbench/primitives/Buttons.tsx
+    - src/components/workbench/primitives/Toggles.tsx
+    see_also:
+    - src/features/showcase/ControlsShowcase.tsx
+    note: compose FormField + TextInput/NumberInput/SelectInput/Textarea (+ Checkbox/RadioGroup/Switch/Slider) with FormActions for the action row; never use raw <input>/<select>/<button>.
+  - id: controls-table
+    kind: controls-recipe
+    when: rendering a dense data grid with selection
+    paths:
+    - src/components/workbench/primitives/DataTable.tsx
+    see_also:
+    - src/features/showcase/LayersPanel.tsx
+    note: DataTable with DataColumn defs + getRowId; single-select active row, emptyText for the empty case; never use a raw <table>.
+  - id: controls-dialog
+    kind: controls-recipe
+    when: modal confirm/info flows
+    paths:
+    - src/components/workbench/primitives/Dialog.tsx
+    see_also:
+    - src/features/showcase/ModalsPanel.tsx
+    note: Dialog for custom bodies, ConfirmDialog (default/danger tone) for confirm/cancel, InfoDialog for single-action notices; footer via FormActions.

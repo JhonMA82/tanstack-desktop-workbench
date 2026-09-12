@@ -1,0 +1,28 @@
+# Task trigger -> capsule routing. Load only the capsules a task needs.
+capsules:
+  - triggers: [telemetry, monitoring, metrics, tile-wall, alerts]
+    capsule: preset-monitoring
+    paths:
+      - src/features/monitoring/monitoringPreset.ts
+      - src/features/monitoring/MonitoringWorkbench.tsx
+  - triggers: [cad, cnc, technical-ribbon, ribbon, ribbon tab, rail tool, docked widget, status item, command-tool, drawing, geometry]
+    capsule: preset-technical-ribbon
+    paths:
+      - src/features/technical-ribbon/technicalRibbonPreset.ts
+      - src/features/technical-ribbon/TechnicalRibbonPage.tsx
+      - src/features/technical-ribbon/technicalRibbonRibbon.ts
+      - src/features/technical-ribbon/technicalRibbonTools.ts
+      - src/features/technical-ribbon/technicalRibbonWidgets.ts
+      - src/features/technical-ribbon/technicalRibbonStatus.ts
+      - src/features/technical-ribbon/technicalRibbonCommands.ts
+  - triggers: [wizard, setup, configuration, onboarding, steps]
+    capsule: preset-setup
+    paths:
+      - src/features/setup/setupPreset.ts
+      - src/features/setup/SetupWorkbench.tsx
+  - triggers: [editor, explorer, panels, tabs, ide]
+    capsule: preset-ide
+    paths:
+      - src/features/ide/idePreset.ts
+      - src/features/ide/IdeWorkbench.tsx
+default: generated-context.md plus project-map.yaml, then the files directly affected.
