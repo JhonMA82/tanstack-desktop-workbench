@@ -2,7 +2,7 @@
   "name": "tanstack-workbench",
   "version": "0.1.0",
   "private": true,
-  "description": "Extensible desktop-style workbench boilerplate (React + TanStack Router + Tailwind v4). Five declarative layout presets with a with/without feature model.",
+  "description": "Extensible desktop-style workbench boilerplate (React + TanStack Router + Tailwind v4). Seven declarative layout presets with a with/without feature model.",
   "type": "module",
   "packageManager": "bun@1.4.0",
   "scripts": {
@@ -10,7 +10,20 @@
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "lint": "biome ci .",
-    "test": "bun test"
+    "test": "bun test",
+    "generate:project": "bun scripts/generate-project.ts",
+    "generate:feature": "bun scripts/generate-feature.ts",
+    "generate:widget": "bun scripts/generate-widget.ts",
+    "generate:command": "bun scripts/generate-command.ts",
+    "generate:tool": "bun scripts/generate-tool.ts",
+    "generate:status-item": "bun scripts/generate-status-item.ts",
+    "generate:preset": "bun scripts/generate-preset.ts",
+    "ai:context": "bun scripts/generate-ai-context.ts",
+    "ai:context:check": "bun scripts/generate-ai-context.ts --check",
+    "validate:architecture": "bun scripts/validate-architecture.ts",
+    "validate:workbench": "bun scripts/validate-workbench.ts",
+    "self-test:scaffolding": "bun scripts/self-test-scaffolding.ts",
+    "validate": "bun run lint && bun run typecheck && bun test && bun run validate:architecture && bun run validate:workbench && bun run ai:context:check && bun run build"
   },
   "dependencies": {
     "@tanstack/react-router": "1.170.35",
