@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-12
+
+### Added
+
+- Controls showcase (`/demo/controls`): generic `Fields` (text, number,
+  select, textarea), `Toggles` (checkbox, radio, switch, slider), `WbButton`
+  variants, `Badge` and dense `DataTable` primitives, with live Layers and
+  Jobs demo panels.
+- Modal dialogs: generic portal-based `Dialog` (sizes, dismissible lock,
+  focus and scroll management) with `ConfirmDialog`/`InfoDialog` wrappers,
+  plus form, info, confirm and progress demos.
+- Command palette (`Ctrl/Cmd+K`) over the command registry with filter,
+  keyboard navigation and shortcut hints, plus a global shortcut
+  dispatcher mounted once in the shell (tool, view and toggle shortcuts
+  execute the same registered commands as the buttons).
+- Workspace persistence: versioned `tanstack-workbench:v1` localStorage key
+  for theme, layout, feature overrides, widget visibility and status
+  toggles. Stored state wins over the manifest with safe fallbacks.
+- Test suites for shortcut parsing/matching and persistence (82 tests).
+
 ## [0.1.0] - 2026-09-12
 
 Initial release of the TanStack Workbench boilerplate: a registry-driven,
@@ -38,5 +58,6 @@ reference interface.
 - Test suites for every registry, feature resolution and preset defaults
   (53 tests).
 
-[Unreleased]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/JhonMA82/tanstack-desktop-workbench/releases/tag/v0.1.0
