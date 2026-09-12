@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-12
+
+### Added
+
+- Context menus: menu model with items resolved from registered
+  commands (fail-fast on unknown ids), portal overlay with full keyboard
+  navigation, opt-in `Viewport` prop wired in the technical-ribbon preset,
+  Layers row menu, and a showcase panel (110 tests).
+
 ## [0.4.0] - 2026-09-12
 
 ### Added
@@ -82,7 +91,9 @@ reference interface.
 - Test suites for every registry, feature resolution and preset defaults
   (53 tests).
 
-[Unreleased]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.3.0...v0.4.0
 [0.4.0]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.2.0...v0.3.0
 [0.3.0]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.2.0...v0.3.0
