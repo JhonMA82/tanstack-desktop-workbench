@@ -28,9 +28,11 @@ export interface CommandOptions {
   shortcut?: string;
 }
 
+export type CommandHandler = (args?: unknown) => void | Promise<void>;
+
 export interface RegisteredCommand {
   id: string;
-  execute: (args?: unknown) => void;
+  execute: CommandHandler;
   label?: string;
   shortcut?: string;
 }
@@ -72,6 +74,13 @@ export interface StatusItemDefinition {
   shortcut?: string;
 }
 
+/**
+ * @deprecated Legacy layout model. `LayoutPreset` is the canonical model for
+ * describing workbench composition; `LayoutDefinition` survives only as a
+ * derived view for backwards compatibility. Migrate with
+ * `migrateLegacyLayoutToPreset` (see `src/workbench/layouts.ts`) instead of
+ * registering new layouts.
+ */
 export interface LayoutDefinition {
   id: string;
   name: string;

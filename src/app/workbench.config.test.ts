@@ -33,4 +33,11 @@ describe("technical-ribbon rename integrity", () => {
     expect(globalLayouts.has("technical-ribbon")).toBe(true);
     expect(globalLayouts.has("cad")).toBe(false);
   });
+
+  it("reads legacy layouts as views of the canonical presets", () => {
+    expect(globalLayouts.get("technical-ribbon")).toMatchObject({
+      id: "technical-ribbon",
+      name: "Technical Ribbon",
+    });
+  });
 });

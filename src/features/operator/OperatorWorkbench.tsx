@@ -1,5 +1,15 @@
-import { Gauge, LayoutDashboard, Siren, SlidersHorizontal } from "lucide-react";
+import {
+  Gauge,
+  LayoutDashboard,
+  Minus,
+  Plus,
+  Siren,
+  SlidersHorizontal,
+} from "lucide-react";
 import { useEffect, useState } from "react";
+import { WbButton } from "../../components/workbench/primitives/Buttons";
+import { IconButton } from "../../components/workbench/primitives/IconButton";
+import { ToolButton } from "../../components/workbench/primitives/ToolButton";
 import {
   BottomPanel,
   type BottomTab,
@@ -69,56 +79,46 @@ function ControlsPanel({
   const [coolant, setCoolant] = useState(true);
   return (
     <div className="flex flex-col gap-2 p-2">
-      <button
-        type="button"
+      <WbButton
+        variant={running ? "success" : "default"}
         aria-pressed={running}
         onClick={onToggleRunning}
-        className={`rounded-md px-3 py-2 text-[12px] font-bold tracking-wide transition-colors ${
-          running
-            ? "bg-[var(--wb-status-success)] text-black"
-            : "bg-[var(--wb-surface-hover)] text-[var(--wb-text)]"
-        }`}
+        className="w-full font-bold tracking-wide"
       >
         {running ? "RUNNING" : "STOPPED"}
-      </button>
+      </WbButton>
       <div className="rounded-md border border-[var(--wb-border-subtle)] p-2">
         <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--wb-text-muted)]">
           Feed override
         </p>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            aria-label="Decrease feed override"
+          <IconButton
+            icon={Minus}
+            label="Decrease feed override"
             onClick={() => setFeedOverride((value) => Math.max(0, value - 5))}
-            className="h-7 w-7 rounded-sm bg-[var(--wb-surface-hover)] text-[var(--wb-text)]"
-          >
-            −
-          </button>
+          />
           <span className="wb-mono flex-1 text-center text-[12px] text-[var(--wb-text)]">
             {feedOverride}%
           </span>
-          <button
-            type="button"
-            aria-label="Increase feed override"
+          <IconButton
+            icon={Plus}
+            label="Increase feed override"
             onClick={() => setFeedOverride((value) => Math.min(150, value + 5))}
-            className="h-7 w-7 rounded-sm bg-[var(--wb-surface-hover)] text-[var(--wb-text)]"
-          >
-            +
-          </button>
+          />
         </div>
       </div>
-      <button
-        type="button"
+      <WbButton
+        variant="default"
         aria-pressed={coolant}
         onClick={() => setCoolant((value) => !value)}
-        className="flex items-center justify-between rounded-md border border-[var(--wb-border-subtle)] px-2.5 py-2 text-[11px] text-[var(--wb-text)]"
+        className="w-full justify-between"
       >
         Coolant
         <span
           aria-hidden
           className={`h-2.5 w-2.5 rounded-full ${coolant ? "bg-[var(--wb-status-success)]" : "bg-[var(--wb-text-disabled)]"}`}
         />
-      </button>
+      </WbButton>
     </div>
   );
 }
@@ -183,23 +183,15 @@ export function OperatorWorkbench({
               className="flex w-40 shrink-0 flex-col gap-1 overflow-y-auto border-r border-[var(--wb-border-subtle)] bg-[var(--wb-surface)] p-1.5"
             >
               {navItems.map((item) => {
-                const Icon = item.icon;
                 const active = item.id === view;
                 return (
-                  <button
+                  <ToolButton
                     key={item.id}
-                    type="button"
-                    aria-pressed={active}
+                    icon={item.icon}
+                    label={item.label}
+                    active={active}
                     onClick={() => setView(item.id)}
-                    className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-[11px] font-semibold transition-colors ${
-                      active
-                        ? "bg-[var(--wb-accent)] text-[var(--wb-accent-contrast)]"
-                        : "text-[var(--wb-text-muted)] hover:bg-[var(--wb-surface-hover)] hover:text-[var(--wb-text)]"
-                    }`}
-                  >
-                    <Icon size={15} aria-hidden />
-                    {item.label}
-                  </button>
+                  />
                 );
               })}
             </nav>

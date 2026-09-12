@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { CommandBar } from "../../components/workbench/shell/CommandBar";
 import { Ribbon } from "../../components/workbench/shell/Ribbon";
 import { StatusBar } from "../../components/workbench/shell/StatusBar";
@@ -9,10 +9,9 @@ import { Viewport } from "../../components/workbench/viewport/Viewport";
 import { WidgetHost } from "../../components/workbench/widgets/DockPanel";
 import { CommandProvider } from "../../workbench/commands";
 import { hasFeature } from "../../workbench/features";
-import { globalLayouts } from "../../workbench/layouts";
 import type { MenuItem } from "../../workbench/menus";
 import { StatusProvider } from "../../workbench/status";
-import { ToolProvider } from "../../workbench/tools";
+import { ToolProvider, useTools } from "../../workbench/tools";
 import type {
   FeatureId,
   LayoutDefinition,
@@ -20,7 +19,11 @@ import type {
 } from "../../workbench/types";
 import { useWidgets, WidgetProvider } from "../../workbench/widgets";
 import { DemoGeometry } from "./DemoGeometry";
-import { registerTechnicalRibbonCommands } from "./technicalRibbonCommands";
+import {
+  getTechnicalRibbonToolSync,
+  registerTechnicalRibbonCommands,
+  shouldSyncTechnicalRibbonTool,
+} from "./technicalRibbonCommands";
 import {
   registerTechnicalRibbonPreset,
   technicalRibbonPreset,
@@ -33,6 +36,12 @@ import {
 } from "./technicalRibbonTools";
 import { registerTechnicalRibbonWidgets } from "./technicalRibbonWidgets";
 
+/**
+ * Legacy layout view derived from the canonical `technicalRibbonPreset`.
+ * The preset is the single source of truth; this object survives only for
+ * backwards-compatible `LayoutDefinition` consumers. Rail/widget ids live in
+ * the tool/widget registries, not in the preset.
+ */
 export const technicalRibbonLayout: LayoutDefinition = {
   id: "technical-ribbon",
   name: "Technical Ribbon",
@@ -50,7 +59,6 @@ registerTechnicalRibbonTools();
 registerTechnicalRibbonWidgets();
 registerTechnicalRibbonStatus();
 registerTechnicalRibbonPreset();
-globalLayouts.registerLayout(technicalRibbonLayout);
 
 function Inspector() {
   const { visible } = useWidgets();
@@ -131,10 +139,29 @@ function TechnicalRibbonWorkbenchInner({
   );
 }
 
+export function TechnicalRibbonToolSync(): null {
+  const { activeToolId, selectTool } = useTools();
+  const { subscribe, getSnapshot } = useMemo(
+    () => getTechnicalRibbonToolSync(),
+    [],
+  );
+  const selectedToolId = useSyncExternalStore(subscribe, getSnapshot);
+  // Effect-only sync (never setState during render): no-op when the
+  // selection coincides with the core active tool or when there is none.
+  // The guard also breaks the selectTool -> command -> selection loop.
+  useEffect(() => {
+    if (shouldSyncTechnicalRibbonTool(selectedToolId, activeToolId)) {
+      selectTool(selectedToolId as string);
+    }
+  }, [selectedToolId, activeToolId, selectTool]);
+  return null;
+}
+
 export function TechnicalRibbonWorkbench(props: TechnicalRibbonWorkbenchProps) {
   return (
     <CommandProvider>
       <ToolProvider initialTool="select">
+        <TechnicalRibbonToolSync />
         <WidgetProvider>
           <StatusProvider>
             <TechnicalRibbonWorkbenchInner {...props} />

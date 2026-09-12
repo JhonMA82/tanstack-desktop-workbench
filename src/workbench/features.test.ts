@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
+  createFeatureRegistry,
   isKnownFeature,
   resolveFeatures,
   resolveFeaturesOrThrow,
@@ -134,5 +135,102 @@ describe("isKnownFeature", () => {
   it("recognizes known features and rejects the rest", () => {
     expect(isKnownFeature("ribbon")).toBe(true);
     expect(isKnownFeature("teleport")).toBe(false);
+  });
+});
+
+describe("createFeatureRegistry", () => {
+  it("registers an app feature without editing the core", () => {
+    const registry = createFeatureRegistry();
+    registry.registerFeature({
+      id: "gcode-console",
+      capabilities: ["console"],
+    });
+    expect(registry.isKnownFeature("gcode-console")).toBe(true);
+    expect(registry.capabilitiesOf("gcode-console")).toEqual(["console"]);
+    expect(registry.knownFeatures()).toContain("gcode-console");
+    expect(registry.knownFeatures()).toContain("viewport");
+    expect(isKnownFeature("gcode-console")).toBe(false);
+  });
+
+  it("rejects duplicate core and app ids fail-fast", () => {
+    const registry = createFeatureRegistry();
+    expect(() =>
+      registry.registerFeature({ id: "viewport", capabilities: ["viewport"] }),
+    ).toThrow('Duplicate feature id: "viewport"');
+    registry.registerFeature({
+      id: "gcode-console",
+      capabilities: ["console"],
+    });
+    expect(() =>
+      registry.registerFeature({
+        id: "gcode-console",
+        capabilities: ["console"],
+      }),
+    ).toThrow('Duplicate feature id: "gcode-console"');
+  });
+
+  it("rejects empty ids and empty capability lists", () => {
+    const registry = createFeatureRegistry();
+    expect(() =>
+      registry.registerFeature({ id: "  ", capabilities: ["console"] }),
+    ).toThrow("Feature id must be a non-empty string.");
+    expect(() =>
+      registry.registerFeature({ id: "gcode-console", capabilities: [] }),
+    ).toThrow(
+      'Feature "gcode-console" must declare at least one hosting capability.',
+    );
+  });
+
+  it("resolves app features hosted by the preset slots", () => {
+    const registry = createFeatureRegistry();
+    registry.registerFeature({
+      id: "gcode-console",
+      capabilities: ["console"],
+    });
+    const ideLike = {
+      ...technicalRibbonLike,
+      id: "ide-like",
+      slots: {
+        ...technicalRibbonLike.slots,
+        bottom: [...technicalRibbonLike.slots.bottom, "console"],
+      },
+    };
+    const { features, errors } = registry.resolveFeatures(ideLike, {
+      with: ["gcode-console"],
+    });
+    expect(errors).toEqual([]);
+    expect(features).toContain("gcode-console");
+  });
+
+  it("reports app features no preset slot can host", () => {
+    const registry = createFeatureRegistry();
+    registry.registerFeature({
+      id: "gcode-console",
+      capabilities: ["console"],
+    });
+    const { errors } = registry.resolveFeatures(technicalRibbonLike, {
+      with: ["gcode-console"],
+    });
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatch(
+      'Feature "gcode-console" cannot be hosted by preset "technical-ribbon"',
+    );
+  });
+
+  it("keeps load-bearing validation for app registries", () => {
+    const registry = createFeatureRegistry();
+    expect(() =>
+      registry.resolveFeaturesOrThrow(technicalRibbonLike, {
+        without: ["viewport"],
+      }),
+    ).toThrow('Invalid feature combination for preset "technical-ribbon"');
+  });
+
+  it("keeps registries isolated from each other", () => {
+    const a = createFeatureRegistry();
+    const b = createFeatureRegistry();
+    a.registerFeature({ id: "gcode-console", capabilities: ["console"] });
+    expect(a.isKnownFeature("gcode-console")).toBe(true);
+    expect(b.isKnownFeature("gcode-console")).toBe(false);
   });
 });

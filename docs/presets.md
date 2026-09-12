@@ -1,10 +1,17 @@
 # Preset catalog
 
-Seven declarative layout presets compose the same shell. A preset declares
+Seven declarative layout presets compose the same shell. `LayoutPreset`
+(`slots` + `defaultFeatures`) is the single canonical model: a preset declares
 **composition** (which capability ids live in each visual slot plus default
 features); it never implements domain logic. Features declare **capabilities**
 (what the app can do). The manifest picks one preset and adjusts it with
 `with` / `without`.
+
+`LayoutDefinition` (`railTools` / `rightWidgets` / `bottomWidgets`) is a
+deprecated legacy view: `globalLayouts` is a thin adapter over the canonical
+preset store (no double registration), and `migrateLegacyLayoutToPreset`
+(`src/workbench/layouts.ts`) bridges old definitions into presets. New code
+registers presets only.
 
 ## Composition sketches
 
@@ -221,24 +228,39 @@ part of the shell.
 
 ## How to add a preset
 
-1. Create `src/features/<name>/<name>Preset.ts` with a `LayoutPreset`
-   (`slots` + `defaultFeatures`) and a guarded `register<Name>Preset()`.
-2. Create `src/features/<name>/<Name>Workbench.tsx` composing primitives,
+Prefer the generator (coherent skeleton + registration function):
+
+```bash
+bun run generate:preset -- custom-layout
+```
+
+Then manually:
+
+1. Create `src/features/<name>/<Name>Workbench.tsx` composing primitives,
    shell pieces (`src/components/workbench/shell/`), the generic `Viewport`,
    and widget components. Gate every region on `hasFeature(features, ...)`.
-3. Add the layout id to `WorkbenchLayoutId` and one entry to
+2. Add the layout id to `WorkbenchLayoutId` and one entry to
    `presetComponents` in `src/app/router.tsx`.
-4. Extend `FeatureId` / `KNOWN_FEATURES` / `FEATURE_CAPABILITIES` only when the
+3. Extend `FeatureId` / `KNOWN_FEATURES` / `FEATURE_CAPABILITIES` only when the
    preset needs a capability no slot can host yet.
-5. Cover it in `src/workbench/presets.test.ts`: defaults resolve, `without`
+4. Cover it in `src/workbench/presets.test.ts`: defaults resolve, `without`
    viewport errors, every new id is hostable.
 
 ## How to add a feature
 
-1. Add the id to `FeatureId` (`src/workbench/types.ts`), `KNOWN_FEATURES` and
-   `FEATURE_CAPABILITIES` (`src/workbench/features.ts`).
-2. Declare the capability in at least one preset's `slots`.
-3. Gate its UI on `hasFeature`; ensure the layout stays coherent without it.
+Core features: add the id to `FeatureId` (`src/workbench/types.ts`),
+`KNOWN_FEATURES` and `FEATURE_CAPABILITIES` (`src/workbench/features.ts`),
+then declare the capability in at least one preset's `slots`.
+
+App features (no core edits): register outside the core via
+`createFeatureRegistry()` / `registerFeature({ id, capabilities })` (or the
+shared `globalFeatures`), then resolve with the registry's
+`resolveFeatures(preset, { with, without })`. Unknown ids, duplicate ids
+(core or registered), empty capability lists, unhostable features, and
+disabled load-bearing capabilities (`viewport` always; `viewport` + `tile-wall`
+for `monitoring`) all fail fast.
+
+Gate its UI on `hasFeature`; ensure the layout stays coherent without it.
 
 ## How to add a panel
 

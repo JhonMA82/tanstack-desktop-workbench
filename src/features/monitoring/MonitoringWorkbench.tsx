@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { WbButton } from "../../components/workbench/primitives/Buttons";
 import { SystemStatusHeader } from "../../components/workbench/shell/SystemStatusHeader";
 import { WorkbenchShell } from "../../components/workbench/shell/WorkbenchShell";
 import { Workspace } from "../../components/workbench/shell/Workspace";
@@ -96,34 +97,28 @@ export function MonitoringWorkbench({
               aria-label="Sources"
               className="flex w-40 shrink-0 flex-col gap-1 overflow-y-auto border-r border-[var(--wb-border-subtle)] bg-[var(--wb-surface)] p-1.5"
             >
-              <button
-                type="button"
+              <WbButton
+                variant={sourceId === null ? "primary" : "ghost"}
+                size="small"
                 aria-pressed={sourceId === null}
                 onClick={() => setSourceId(null)}
-                className={`rounded-md px-2.5 py-2 text-left text-[11px] font-semibold transition-colors ${
-                  sourceId === null
-                    ? "bg-[var(--wb-accent)] text-[var(--wb-accent-contrast)]"
-                    : "text-[var(--wb-text-muted)] hover:bg-[var(--wb-surface-hover)] hover:text-[var(--wb-text)]"
-                }`}
+                className="w-full justify-start"
               >
                 All sources
-              </button>
+              </WbButton>
               {DEMO_SOURCES.map((source) => {
                 const active = source.id === sourceId;
                 return (
-                  <button
+                  <WbButton
                     key={source.id}
-                    type="button"
+                    variant={active ? "primary" : "ghost"}
+                    size="small"
                     aria-pressed={active}
                     onClick={() => setSourceId(active ? null : source.id)}
-                    className={`rounded-md px-2.5 py-2 text-left text-[11px] font-semibold transition-colors ${
-                      active
-                        ? "bg-[var(--wb-accent)] text-[var(--wb-accent-contrast)]"
-                        : "text-[var(--wb-text-muted)] hover:bg-[var(--wb-surface-hover)] hover:text-[var(--wb-text)]"
-                    }`}
+                    className="w-full justify-start"
                   >
                     {source.label}
-                  </button>
+                  </WbButton>
                 );
               })}
             </nav>

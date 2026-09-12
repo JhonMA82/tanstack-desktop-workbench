@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-type ButtonVariant = "primary" | "default" | "ghost" | "danger";
+type ButtonVariant = "primary" | "default" | "ghost" | "danger" | "success";
 type ButtonSize = "default" | "small";
 
 const variantClass: Record<ButtonVariant, string> = {
@@ -12,6 +12,8 @@ const variantClass: Record<ButtonVariant, string> = {
     "border-transparent bg-transparent text-[var(--wb-text-muted)] hover:bg-[var(--wb-surface-hover)] hover:text-[var(--wb-text)]",
   danger:
     "border-[var(--wb-status-error)] bg-[var(--wb-status-error)] text-[var(--wb-accent-contrast)] hover:opacity-90",
+  success:
+    "border-[var(--wb-status-success)] bg-[var(--wb-status-success)] text-black hover:opacity-90",
 };
 
 const sizeClass: Record<ButtonSize, string> = {

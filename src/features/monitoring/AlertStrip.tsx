@@ -2,6 +2,7 @@ import {
   Badge,
   type BadgeTone,
 } from "../../components/workbench/primitives/Badge";
+import { WbButton } from "../../components/workbench/primitives/Buttons";
 import type { AlertSeverity, DemoAlert } from "./monitoringDemo";
 
 const severityTone: Record<AlertSeverity, BadgeTone> = {
@@ -56,14 +57,14 @@ export function AlertStrip({
             <span className="wb-mono text-[var(--wb-text-disabled)]">
               {alert.time}
             </span>
-            <button
-              type="button"
+            <WbButton
+              variant="ghost"
+              size="small"
               onClick={() => onAcknowledge(alert.id)}
               aria-label={`Acknowledge alert ${alert.id}`}
-              className="rounded-sm px-1.5 py-px text-[var(--wb-text-muted)] hover:bg-[var(--wb-surface-hover)] hover:text-[var(--wb-text)]"
             >
               Ack
-            </button>
+            </WbButton>
           </span>
         ))
       )}

@@ -97,6 +97,176 @@ export interface ResolvedFeatures {
   errors: string[];
 }
 
+/** Feature id type for app extensions: core ids stay typed, extras are strings. */
+export type ExtensibleFeatureId = FeatureId | (string & {});
+
+export interface AppFeatureRegistration {
+  /** Kebab-case id, e.g. "gcode-console". Must not collide with core ids. */
+  id: string;
+  /** Slot capability ids that can host this feature. Non-empty. */
+  capabilities: readonly string[];
+}
+
+export interface ExtensibleFeatureOverrides {
+  with?: string[];
+  without?: string[];
+}
+
+export interface ExtensibleResolvedFeatures {
+  /** Effective feature set: preset defaults with overrides applied. */
+  features: string[];
+  /** Empty when the combination is coherent. */
+  errors: string[];
+}
+
+/**
+ * Extensible feature registry: core features stay strongly typed while
+ * applications register their own features (with hosting capabilities)
+ * without editing `src/workbench/features.ts`. Fail-fast: duplicate ids
+ * (core or already registered) and empty capability lists throw.
+ */
+export interface FeatureRegistry {
+  registerFeature(registration: AppFeatureRegistration): void;
+  isKnownFeature(value: string): boolean;
+  capabilitiesOf(id: string): readonly string[] | undefined;
+  knownFeatures(): readonly string[];
+  validatePresetCombination(
+    preset: LayoutPreset,
+    features: readonly string[],
+  ): string[];
+  resolveFeatures(
+    preset: LayoutPreset,
+    overrides?: ExtensibleFeatureOverrides,
+  ): ExtensibleResolvedFeatures;
+  resolveFeaturesOrThrow(
+    preset: LayoutPreset,
+    overrides?: ExtensibleFeatureOverrides,
+  ): string[];
+  hasFeature(features: readonly string[], id: string): boolean;
+}
+
+/** Create an isolated registry seeded with the core feature catalog. */
+export function createFeatureRegistry(): FeatureRegistry {
+  const capabilities = new Map<string, readonly string[]>();
+  for (const id of KNOWN_FEATURES) {
+    capabilities.set(id, FEATURE_CAPABILITIES[id]);
+  }
+  const knownList = (): string[] => [
+    ...KNOWN_FEATURES,
+    ...[...capabilities.keys()].filter((id) => !isKnownFeature(id)),
+  ];
+  const knownErrorList = (): string => knownList().join(", ");
+  const isKnown = (value: string): boolean => capabilities.has(value);
+  const validate = (
+    preset: LayoutPreset,
+    features: readonly string[],
+  ): string[] => {
+    const errors: string[] = [];
+    const hosted = new Set(Object.values(preset.slots).flat());
+    for (const feature of features) {
+      if (!isKnown(feature)) {
+        errors.push(
+          `Unknown feature id: "${feature}". Known features: ${knownErrorList()}.`,
+        );
+      }
+    }
+    for (const loadBearing of PRESET_LOAD_BEARING[preset.id] ??
+      DEFAULT_LOAD_BEARING) {
+      if (!features.includes(loadBearing)) {
+        errors.push(
+          `Feature "${loadBearing}" is load-bearing for preset "${preset.id}" and cannot be disabled.`,
+        );
+      }
+    }
+    for (const feature of features) {
+      if (!isKnown(feature)) {
+        continue;
+      }
+      const canHost = (capabilities.get(feature) ?? []).some((capability) =>
+        hosted.has(capability),
+      );
+      if (!canHost) {
+        errors.push(
+          `Feature "${feature}" cannot be hosted by preset "${preset.id}": no slot declares a matching capability.`,
+        );
+      }
+    }
+    return errors;
+  };
+  const resolve = (
+    preset: LayoutPreset,
+    overrides: ExtensibleFeatureOverrides = {},
+  ): ExtensibleResolvedFeatures => {
+    const errors: string[] = [];
+    const excluded = new Set<string>();
+    const included: string[] = [];
+    for (const id of overrides.without ?? []) {
+      if (!isKnown(id)) {
+        errors.push(
+          `Unknown feature id in "without": "${id}". Known features: ${knownErrorList()}.`,
+        );
+        continue;
+      }
+      excluded.add(id);
+    }
+    for (const id of overrides.with ?? []) {
+      if (!isKnown(id)) {
+        errors.push(
+          `Unknown feature id in "with": "${id}". Known features: ${knownErrorList()}.`,
+        );
+        continue;
+      }
+      if (!excluded.has(id) && !included.includes(id)) {
+        included.push(id);
+      }
+    }
+    const features = (preset.defaultFeatures as readonly string[]).filter(
+      (id) => !excluded.has(id) && !included.includes(id),
+    );
+    features.push(...included);
+    errors.push(...validate(preset, features));
+    return { features, errors };
+  };
+  return {
+    registerFeature(registration) {
+      const id = registration.id.trim();
+      if (id === "") {
+        throw new Error("Feature id must be a non-empty string.");
+      }
+      if (capabilities.has(id)) {
+        throw new Error(`Duplicate feature id: "${id}"`);
+      }
+      if (registration.capabilities.length === 0) {
+        throw new Error(
+          `Feature "${id}" must declare at least one hosting capability.`,
+        );
+      }
+      capabilities.set(id, [...registration.capabilities]);
+    },
+    isKnownFeature: isKnown,
+    capabilitiesOf: (id) => capabilities.get(id),
+    knownFeatures: knownList,
+    validatePresetCombination: validate,
+    resolveFeatures: resolve,
+    resolveFeaturesOrThrow: (preset, overrides) => {
+      const { features, errors } = resolve(preset, overrides);
+      if (errors.length > 0) {
+        throw new Error(
+          `Invalid feature combination for preset "${preset.id}":\n- ${errors.join("\n- ")}`,
+        );
+      }
+      return features;
+    },
+    hasFeature: (features, id) => features.includes(id),
+  };
+}
+
+/**
+ * Shared app-level registry seeded with core features. Tests should use
+ * `createFeatureRegistry()` for isolation.
+ */
+export const globalFeatures: FeatureRegistry = createFeatureRegistry();
+
 /** True when the value is a known feature id. */
 export function isKnownFeature(value: string): value is FeatureId {
   return (KNOWN_FEATURES as readonly string[]).includes(value);

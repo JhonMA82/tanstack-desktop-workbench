@@ -1,12 +1,12 @@
 import type { FeatureId } from "../workbench/types";
 
 /**
- * Application manifest: declarative generation metadata for the workbench.
- * There is no CLI generator in this architecture; cloning the repo and
- * editing this file IS the generator.
- *
- * Phase A knows one preset: "technical-ribbon". Phase B will add
- * ide/studio/operator/minimal; the with/without model already anticipates them.
+ * Application manifest: declarative description of this workbench instance.
+ * The manifest declares app metadata (name, preset, with/without, theme);
+ * materializing a new application from it is the job of the project
+ * generator, not of manual edits. Known preset ids: technical-ribbon, ide,
+ * studio, operator, monitoring, setup, minimal; the with/without model
+ * adjusts the preset defaults while keeping the combination coherent.
  */
 export type WorkbenchLayoutId =
   | "technical-ribbon"

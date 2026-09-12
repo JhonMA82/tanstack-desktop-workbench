@@ -1,10 +1,14 @@
 import { createContext, type ReactNode, useContext, useMemo } from "react";
-import type { CommandOptions, RegisteredCommand } from "./types";
+import type {
+  CommandHandler,
+  CommandOptions,
+  RegisteredCommand,
+} from "./types";
 
 export interface CommandRegistry {
   registerCommand(
     id: string,
-    execute: (args?: unknown) => void,
+    execute: CommandHandler,
     opts?: CommandOptions,
   ): void;
   /** Runs a command. Returns false when the id is unknown. */
@@ -13,6 +17,32 @@ export interface CommandRegistry {
   get(id: string): RegisteredCommand | undefined;
   list(): RegisteredCommand[];
   history(): string[];
+}
+
+export interface UnhandledCommandError {
+  id: string;
+  error: unknown;
+}
+
+/** Default reporter: loud in the console, never silent. */
+function reportToConsole(event: UnhandledCommandError): void {
+  console.error(
+    '[workbench] async command "%s" failed:',
+    event.id,
+    event.error,
+  );
+}
+
+let unhandledHandler = reportToConsole;
+
+/**
+ * Override where async command failures go (e.g. status bar, toast, telemetry).
+ * Pass `undefined` to restore the default console reporter.
+ */
+export function setUnhandledCommandErrorHandler(
+  handler: ((event: UnhandledCommandError) => void) | undefined,
+): void {
+  unhandledHandler = handler ?? reportToConsole;
 }
 
 export function createCommandRegistry(): CommandRegistry {
@@ -35,7 +65,12 @@ export function createCommandRegistry(): CommandRegistry {
       if (!command) {
         return false;
       }
-      command.execute(args);
+      const result = command.execute(args);
+      if (result instanceof Promise) {
+        // Fire-and-forget: execute() keeps its sync boolean contract.
+        // Rejections go to the reporter (default: console.error), never silent.
+        result.catch((error: unknown) => unhandledHandler({ id, error }));
+      }
       past.push(id);
       return true;
     },
