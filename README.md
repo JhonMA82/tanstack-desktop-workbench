@@ -260,6 +260,20 @@ New primitives: `Fields` (`FormField`, `TextInput`, `NumberInput`, `SelectInput`
 (single-select, left/right alignment, ~28px rows). Demo tables: Layers (selection
 drives a details readout) and Jobs (progress, status badge, duration).
 Dialogs: `Dialog` (+ `ConfirmDialog`/`InfoDialog`) demoed in `ModalsPanel` (form, info/confirm, non-dismissible progress).
+States: `EmptyState` (icon + title + message + optional action), `LoadingState`
+(CSS-only accent spinner, `role="status"`, plus optional pulsing `Skeleton` rows),
+and `ErrorState` (error-tone icon + title + message + retry button) — all in
+`src/components/workbench/primitives/States.tsx`, token-styled (`--wb-*` only)
+and actionable via plain `onClick` props. Demoed in `StatesPanel`, including an
+isolated throw demo proving catch-and-recover without breaking the page.
+
+`ErrorBoundary` (`src/components/workbench/primitives/ErrorBoundary.tsx`)
+catches render errors below it and shows the `ErrorState` fallback with a
+working retry. It mounts once in `RootLayout` (`src/app/router.tsx`), so every
+preset and route is covered. Retry semantics: retry clears the boundary error
+and remounts the children (internal nonce key); the optional `onRetry` hook lets
+callers clear the trigger that caused the crash. Errors report through `onError`
+(default `console.error`); only `error.message` is shown, never stack traces.
 
 ## 15. How to create a theme
 

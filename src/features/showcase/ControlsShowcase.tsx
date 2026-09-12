@@ -28,6 +28,7 @@ import { InteractionPanel } from "./InteractionPanel";
 import { JobsPanel } from "./JobsPanel";
 import { LayersPanel } from "./LayersPanel";
 import { ModalsPanel } from "./ModalsPanel";
+import { StatesPanel } from "./StatesPanel";
 
 const readoutClass =
   "rounded-sm border border-[var(--wb-border-subtle)] bg-[var(--wb-background)] p-2";
@@ -238,6 +239,7 @@ export function ControlsShowcase() {
         <InteractionPanel />
         <ContextMenuPanel />
         <ModalsPanel />
+        <StatesPanel />
       </div>
     </div>
   );

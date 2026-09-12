@@ -7,6 +7,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import { type ComponentType, useEffect, useState } from "react";
+import { ErrorBoundary } from "../components/workbench/primitives/ErrorBoundary";
 import { IdeWorkbench } from "../features/ide/IdeWorkbench";
 import { ControlsShowcase } from "../features/showcase/ControlsShowcase";
 import { TechnicalRibbonPage } from "../features/technical-ribbon/TechnicalRibbonPage";
@@ -185,12 +186,14 @@ function RootLayout() {
     saveWorkspaceState({ theme });
   }, [theme]);
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden">
-      <PresetSwitcher theme={theme} onThemeChange={setTheme} />
-      <div className="flex min-h-0 flex-1 flex-col">
-        <Outlet />
+    <ErrorBoundary>
+      <div className="flex h-screen w-screen flex-col overflow-hidden">
+        <PresetSwitcher theme={theme} onThemeChange={setTheme} />
+        <div className="flex min-h-0 flex-1 flex-col">
+          <Outlet />
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }
 
