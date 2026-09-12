@@ -1,5 +1,6 @@
 import { Terminal } from "lucide-react";
 import { useRef, useState } from "react";
+import { usePalette } from "../../../workbench/palette";
 import { useTools } from "../../../workbench/tools";
 import { CommandInput } from "../primitives/CommandInput";
 
@@ -12,6 +13,7 @@ interface HistoryEntry {
 /** Command line with history (F2) and tool matching. No CAD logic inside. */
 export function CommandBar() {
   const { tools, selectTool } = useTools();
+  const { openPalette } = usePalette();
   const [value, setValue] = useState("");
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -67,6 +69,16 @@ export function CommandBar() {
       <span className="wb-mono hidden shrink-0 text-[10px] text-[var(--wb-text-disabled)] sm:inline">
         Enter | ESC Cancel
       </span>
+      <button
+        type="button"
+        onClick={openPalette}
+        title="Command palette (Ctrl+K)"
+        aria-label="Open command palette"
+        className="flex shrink-0 cursor-pointer items-center gap-1 rounded-sm border border-[var(--wb-border-subtle)] bg-[var(--wb-surface)] px-1.5 py-0.5 text-[10px] text-[var(--wb-text-muted)] hover:bg-[var(--wb-surface-hover)] hover:text-[var(--wb-text)]"
+      >
+        <span aria-hidden="true">⌘</span>
+        <span className="wb-mono">K</span>
+      </button>
       {historyOpen ? (
         <div
           role="log"
