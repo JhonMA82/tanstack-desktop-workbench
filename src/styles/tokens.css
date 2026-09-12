@@ -1,0 +1,29 @@
+/* Workbench design tokens.
+ * Declares every --wb-* token consumed by components, with safe fallbacks
+ * so components render even when no theme file is loaded.
+ * Canonical theme values live in ./themes/ocstudio.css. */
+
+:root {
+  --wb-background: #1e1e1e;
+  --wb-backdrop: #1a1a1a;
+  --wb-surface: #252526;
+  --wb-surface-raised: #333333;
+  --wb-surface-hover: #3e3e42;
+  --wb-border: #454545;
+  --wb-border-subtle: #2d2d30;
+  --wb-chrome: #323233;
+  --wb-tabstrip: #2d2d30;
+  --wb-accent: #007acc;
+  --wb-accent-hover: #0098ff;
+  --wb-accent-contrast: #ffffff;
+  --wb-text: #cccccc;
+  --wb-text-muted: #9d9d9d;
+  --wb-text-disabled: #6e6e6e;
+  --wb-status-success: #27c93f;
+  --wb-status-warning: #ffbd2e;
+  --wb-status-error: #ff5f56;
+  --wb-grid-minor: #2a2a2a;
+  --wb-grid-major: #323232;
+  --wb-axis-x: #d15454;
+  --wb-axis-y: #5cae5c;
+}
