@@ -6,8 +6,10 @@ import {
   useRef,
   useState,
 } from "react";
+import type { MenuItem } from "../../../workbench/menus";
 import { useStatus } from "../../../workbench/status";
 import type { ViewportCoords } from "../../../workbench/types";
+import { MenuOverlay } from "../primitives/ContextMenu";
 import { IconButton } from "../primitives/IconButton";
 import { type PanZoomState, usePanZoom } from "./usePanZoom";
 import { ViewportGrid } from "./ViewportGrid";
@@ -25,6 +27,9 @@ interface ViewportProps {
    */
   interactive?: boolean;
   onTransformChange?: (state: PanZoomState) => void;
+  /** Opt-in right-click menu. Default none (legacy: no menu). */
+  contextMenu?: MenuItem[];
+  onMenuAction?: (label: string) => void;
 }
 
 /**
@@ -39,6 +44,8 @@ export function Viewport({
   onCoordsChange,
   interactive = false,
   onTransformChange,
+  contextMenu,
+  onMenuAction,
 }: ViewportProps) {
   const { isActive } = useStatus();
   const [pointer, setPointer] = useState({ x: 0, y: 0, inside: false });
@@ -74,6 +81,18 @@ export function Viewport({
   // Report transform after every pan/zoom commit (single sync point, so
   // handlers never report stale state).
   const { x: tx, y: ty, k: tk } = panZoom;
+  const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
+
+  const handleContextMenu = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (!contextMenu) {
+        return;
+      }
+      event.preventDefault();
+      setMenuAt({ x: event.clientX, y: event.clientY });
+    },
+    [contextMenu],
+  );
   useEffect(() => {
     transformRef.current?.({ x: tx, y: ty, k: tk });
   }, [tx, ty, tk]);
@@ -167,6 +186,7 @@ export function Viewport({
       onPointerUp={endPan}
       onPointerCancel={endPan}
       onKeyDown={handleKeyDown}
+      onContextMenu={handleContextMenu}
     >
       {showGrid ? <ViewportGrid /> : null}
       {interactive ? (
@@ -213,6 +233,15 @@ export function Viewport({
             onClick={() => panZoom.reset()}
           />
         </div>
+      ) : null}
+      {menuAt && contextMenu ? (
+        <MenuOverlay
+          items={contextMenu}
+          x={menuAt.x}
+          y={menuAt.y}
+          onClose={() => setMenuAt(null)}
+          onAction={onMenuAction}
+        />
       ) : null}
     </div>
   );

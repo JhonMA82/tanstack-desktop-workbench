@@ -10,6 +10,7 @@ import { WidgetHost } from "../../components/workbench/widgets/DockPanel";
 import { CommandProvider } from "../../workbench/commands";
 import { hasFeature } from "../../workbench/features";
 import { globalLayouts } from "../../workbench/layouts";
+import type { MenuItem } from "../../workbench/menus";
 import { StatusProvider } from "../../workbench/status";
 import { ToolProvider } from "../../workbench/tools";
 import type {
@@ -66,6 +67,16 @@ function Inspector() {
   );
 }
 
+// Viewport right-click menu: zoom commands, separator, grid toggle.
+// Every entry reuses a registered command id (zero duplicated actions).
+const viewportContextMenu: MenuItem[] = [
+  { command: "view.zoom-in" },
+  { command: "view.zoom-out" },
+  { command: "view.reset" },
+  { separator: true },
+  { command: "grid.toggle" },
+];
+
 interface TechnicalRibbonWorkbenchProps {
   /** Resolved feature set; defaults to the preset defaults. */
   features?: FeatureId[];
@@ -87,7 +98,11 @@ function TechnicalRibbonWorkbenchInner({
         {hasFeature(features, "tool-rail") ? (
           <ToolRail tools={technicalRibbonRailTools} />
         ) : null}
-        <Viewport onCoordsChange={setCoords} scaleLabel="1:1">
+        <Viewport
+          onCoordsChange={setCoords}
+          scaleLabel="1:1"
+          contextMenu={viewportContextMenu}
+        >
           <DemoGeometry />
         </Viewport>
         {hasFeature(features, "inspector") ? <Inspector /> : null}

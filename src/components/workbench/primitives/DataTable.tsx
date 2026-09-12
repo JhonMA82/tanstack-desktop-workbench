@@ -17,6 +17,8 @@ export interface DataTableProps<T> {
   selectedId?: string;
   onSelect?: (row: T) => void;
   emptyText?: string;
+  /** Opt-in right-click per row (menus stay in the caller, never here). */
+  onRowContextMenu?: (row: T, event: MouseEvent<HTMLTableRowElement>) => void;
 }
 
 /** Dense data grid (~28px rows) with single-select active row state. */
@@ -28,6 +30,7 @@ export function DataTable<T>({
   selectedId,
   onSelect,
   emptyText = "No rows",
+  onRowContextMenu,
 }: DataTableProps<T>) {
   const selectable = onSelect !== undefined;
 
@@ -91,6 +94,11 @@ export function DataTable<T>({
                   onKeyDown={
                     selectable
                       ? (event) => handleKeyDown(event, row)
+                      : undefined
+                  }
+                  onContextMenu={
+                    onRowContextMenu
+                      ? (event) => onRowContextMenu(row, event)
                       : undefined
                   }
                   className={`h-7 border-b border-[var(--wb-border-subtle)] last:border-b-0 ${

@@ -321,6 +321,37 @@ import { usePanZoom, clampScale, zoomAt, toTransform } from "./usePanZoom";
   global shortcut dispatcher (`stopPropagation` guards the rest).
 - Live demo: `/demo/controls` → "Toasts" + "Pan & zoom viewport" panels.
 
+## Context menus
+
+Declarative right-click menus fed by the same registered commands as the
+Ribbon, palette, and shortcuts — a new surface, zero duplicated actions
+(`src/workbench/menus.ts` + `ContextMenu` primitive):
+
+```tsx
+import type { MenuItem } from "./menus";
+
+const menu: MenuItem[] = [
+  { command: "view.zoom-in" }, // label/shortcut pulled from the registry
+  { command: "view.zoom-out" },
+  { separator: true },
+  { label: "Delete", shortcut: "Del", danger: true }, // inline entry
+  { label: "Paste", disabled: true },
+];
+```
+
+- `resolveMenuItems(items, commands)` returns render-ready rows. Unknown
+  command ids throw fail-fast (never a silent gap); `clampMenuPosition`
+  keeps the overlay inside the viewport. Both are pure and unit-tested.
+- `<ContextMenuTrigger menu={...}>` wraps any area; `<MenuOverlay>` is the
+  portal itself (cursor-anchored, closes on select/Escape/outside-click/
+  scroll/resize; `Up/Down/Home/End` + `Enter`; `role="menu"`/`menuitem`/
+  `separator`). Flat list + separators only — no submenus by design.
+- `Viewport` takes an opt-in `contextMenu?: MenuItem[]` (default none,
+  legacy untouched). The technical-ribbon viewport wires zoom in/out/reset
+  - separator + grid toggle, all as registered command ids.
+- Live demo: `/demo/controls` → "Context menu" (right-click area +
+  last-action readout) and right-click any Layers row.
+
 ## Commands
 
 | Command | Purpose |

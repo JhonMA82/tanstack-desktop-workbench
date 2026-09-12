@@ -1,6 +1,7 @@
 import { Eye, EyeOff, Lock, LockOpen } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "../../components/workbench/primitives/Badge";
+import { MenuOverlay } from "../../components/workbench/primitives/ContextMenu";
 import { DataTable } from "../../components/workbench/primitives/DataTable";
 import { IconButton } from "../../components/workbench/primitives/IconButton";
 import {
@@ -8,6 +9,7 @@ import {
   PanelHeader,
 } from "../../components/workbench/primitives/Panel";
 import { PropertyRow } from "../../components/workbench/primitives/PropertyRow";
+import type { MenuItem } from "../../workbench/menus";
 import type { Layer } from "./demoData";
 import { initialLayers } from "./demoData";
 
@@ -15,8 +17,35 @@ import { initialLayers } from "./demoData";
 export function LayersPanel() {
   const [layers, setLayers] = useState<Layer[]>(initialLayers);
   const [selectedId, setSelectedId] = useState<string>("walls");
+  const [menu, setMenu] = useState<{
+    row: Layer;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const selected = layers.find((layer) => layer.id === selectedId);
+
+  // Row right-click menu over demo data only: visibility, lock,
+  // separator, select. Same MenuOverlay primitive as every menu.
+  const rowMenu: MenuItem[] = menu
+    ? [
+        {
+          label: menu.row.visible ? "Hide layer" : "Show layer",
+          icon: menu.row.visible ? EyeOff : Eye,
+          onSelect: () => flip(menu.row.id, "visible"),
+        },
+        {
+          label: menu.row.locked ? "Unlock layer" : "Lock layer",
+          icon: menu.row.locked ? LockOpen : Lock,
+          onSelect: () => flip(menu.row.id, "locked"),
+        },
+        { separator: true },
+        {
+          label: "Select layer",
+          onSelect: () => setSelectedId(menu.row.id),
+        },
+      ]
+    : [];
 
   const flip = (id: string, key: "visible" | "locked") => {
     setLayers((prev) =>
@@ -90,6 +119,11 @@ export function LayersPanel() {
           getRowId={(row) => row.id}
           selectedId={selectedId}
           onSelect={(row) => setSelectedId(row.id)}
+          onRowContextMenu={(row, event) => {
+            event.preventDefault();
+            setSelectedId(row.id);
+            setMenu({ row, x: event.clientX, y: event.clientY });
+          }}
         />
         <div
           aria-live="polite"
@@ -121,6 +155,14 @@ export function LayersPanel() {
           )}
         </div>
       </div>
+      {menu ? (
+        <MenuOverlay
+          items={rowMenu}
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+        />
+      ) : null}
     </Panel>
   );
 }
