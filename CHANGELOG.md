@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-12
+
+### Added
+
+- `light` theme: every `--wb-*` token redefined under
+  `[data-theme="light"]`, typed `ThemeId` with validated fallback, and a
+  demo-only runtime switcher reusing the persistence path. Proves new
+  themes need zero component changes.
+- Theme parity test: fails if any theme misses a token defined in
+  `tokens.css` (99 tests).
+
 ## [0.3.0] - 2026-09-12
 
 ### Added
@@ -71,7 +82,9 @@ reference interface.
 - Test suites for every registry, feature resolution and preset defaults
   (53 tests).
 
-[Unreleased]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.2.0...v0.3.0
 [0.3.0]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.1.0...v0.2.0
 [0.2.0]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.1.0...v0.2.0
