@@ -15,6 +15,20 @@ export type WorkbenchLayoutId =
   | "operator"
   | "minimal";
 
+/** Theme id (see src/styles/themes/*.css). Applied to <html> data-theme. */
+export type ThemeId = "ocstudio" | "light";
+
+/** All known theme ids; stored themes outside this list fall back to the manifest. */
+export const workbenchThemes: readonly ThemeId[] = ["ocstudio", "light"];
+
+/** Validate a stored or external theme value against the known theme ids. */
+export function isThemeId(value: unknown): value is ThemeId {
+  return (
+    typeof value === "string" &&
+    (workbenchThemes as readonly string[]).includes(value)
+  );
+}
+
 export interface WorkbenchConfig {
   /** Display name of the application. */
   appName: string;
@@ -25,7 +39,7 @@ export interface WorkbenchConfig {
   /** Preset default features disabled; the result stays coherent. */
   without?: FeatureId[];
   /** Theme id (see src/styles/themes/*.css). Applied to <html> data-theme. */
-  theme: string;
+  theme: ThemeId;
 }
 
 export const workbenchConfig: WorkbenchConfig = {

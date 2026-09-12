@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "./tokens.css";
 @import "./themes/ocstudio.css";
+@import "./themes/light.css";
 
 html,
 body,

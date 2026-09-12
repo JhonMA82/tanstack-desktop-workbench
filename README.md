@@ -106,8 +106,17 @@ Data-driven: `RibbonTab[]` (`tabs -> groups -> tool ids`), first tool per group 
 
 ## 10. Themes
 
-Tokens in `src/styles/tokens.css`, values per theme in `src/styles/themes/*.css`
-(`[data-theme="ocstudio"]` is default, set on `<html>`). New themes override tokens only.
+Tokens in `src/styles/tokens.css`, values per theme in `src/styles/themes/*.css`.
+Available themes: `ocstudio` (dark default, set on `<html>` in `index.html`)
+and `light`. New themes override tokens only — no component changed for `light`,
+which is the proof of the token architecture.
+
+Switch at runtime with the DEMO-ONLY Theme switcher in the preview bar
+(`ocstudio | light`); the choice persists through the existing theme
+write-back (`saveWorkspaceState`), stored themes outside the manifest
+`ThemeId` union fall back to the manifest default with a `console.warn`.
+`src/styles/themes/theme-parity.test.ts` asserts every theme file defines
+the same `--wb-*` set, so a missing token fails the suite.
 
 ## 11. How to add a widget
 

@@ -25,7 +25,12 @@ import {
   saveWorkspaceState,
 } from "../workbench/persistence";
 import type { FeatureId } from "../workbench/types";
-import { workbenchConfig } from "./workbench.config";
+import {
+  isThemeId,
+  type ThemeId,
+  workbenchConfig,
+  workbenchThemes,
+} from "./workbench.config";
 
 type PresetComponent = ComponentType<{ features?: FeatureId[] }>;
 
@@ -61,10 +66,51 @@ function PreviewFrame({ children }: { children: React.ReactNode }) {
 }
 
 /**
+ * DEMO-ONLY theme switcher: toggles the applied theme at runtime.
+ * Not part of the shell; it reuses the theme write-back path.
+ */
+function ThemeSwitcher({
+  theme,
+  onThemeChange,
+}: {
+  theme: ThemeId;
+  onThemeChange: (theme: ThemeId) => void;
+}) {
+  return (
+    <span className="ml-2 flex items-center gap-1 border-l border-[var(--wb-border-subtle)] pl-2">
+      <span className="mr-1 font-semibold uppercase tracking-wider text-[var(--wb-text-disabled)]">
+        Theme
+      </span>
+      {workbenchThemes.map((id) => (
+        <button
+          key={id}
+          type="button"
+          aria-pressed={theme === id}
+          onClick={() => onThemeChange(id)}
+          className={
+            theme === id
+              ? "rounded-sm bg-[var(--wb-surface-hover)] px-2 py-0.5 text-[var(--wb-text)]"
+              : "rounded-sm px-2 py-0.5 text-[var(--wb-text-muted)] hover:bg-[var(--wb-surface-hover)] hover:text-[var(--wb-text)]"
+          }
+        >
+          {id}
+        </button>
+      ))}
+    </span>
+  );
+}
+
+/**
  * DEMO-ONLY preset switcher: plain links for comparing presets. Not part of
  * the shell; generated applications delete it and render one preset.
  */
-function PresetSwitcher() {
+function PresetSwitcher({
+  theme,
+  onThemeChange,
+}: {
+  theme: ThemeId;
+  onThemeChange: (theme: ThemeId) => void;
+}) {
   return (
     <nav
       aria-label="Preset preview"
@@ -107,15 +153,32 @@ function PresetSwitcher() {
       >
         Controls
       </Link>
+      <ThemeSwitcher theme={theme} onThemeChange={onThemeChange} />
     </nav>
   );
 }
 
+/**
+ * Resolve the initial theme: stored wins when it names a known theme,
+ * else the manifest default with a warning (same pattern as layout).
+ */
+function resolveInitialTheme(): ThemeId {
+  const stored = loadWorkspaceState().theme;
+  if (stored === undefined) {
+    return workbenchConfig.theme;
+  }
+  if (isThemeId(stored)) {
+    return stored;
+  }
+  console.warn(
+    `Ignoring stored theme "${stored}": unknown theme. Falling back to manifest theme "${workbenchConfig.theme}".`,
+  );
+  return workbenchConfig.theme;
+}
+
 function RootLayout() {
   // Stored theme wins over the manifest default (sync init, no flash handling).
-  const [theme] = useState(
-    () => loadWorkspaceState().theme ?? workbenchConfig.theme,
-  );
+  const [theme, setTheme] = useState(resolveInitialTheme);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     // Write the applied theme through so a stored value stays authoritative.
@@ -123,7 +186,7 @@ function RootLayout() {
   }, [theme]);
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden">
-      <PresetSwitcher />
+      <PresetSwitcher theme={theme} onThemeChange={setTheme} />
       <div className="flex min-h-0 flex-1 flex-col">
         <Outlet />
       </div>

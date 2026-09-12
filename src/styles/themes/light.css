@@ -1,0 +1,32 @@
+/* Light workbench theme: light.
+ * Same --wb-* token contract as ocstudio, light values only.
+ * No component changes needed: components consume var(--wb-*) only.
+ * Accent stays the ocstudio blue; the hover step is darkened so white
+ * label text keeps contrast on light surfaces. Status and axis tones
+ * are darkened for readability on light; grid steps stay visible
+ * against the light viewport background. */
+
+[data-theme="light"] {
+  --wb-background: #eef0f3;
+  --wb-backdrop: #e2e5ea;
+  --wb-surface: #ffffff;
+  --wb-surface-raised: #f1f2f5;
+  --wb-surface-hover: #e4e6eb;
+  --wb-border: #c9ccd3;
+  --wb-border-subtle: #dfe1e6;
+  --wb-chrome: #eceef1;
+  --wb-tabstrip: #e2e4e9;
+  --wb-accent: #007acc;
+  --wb-accent-hover: #005a9e;
+  --wb-accent-contrast: #ffffff;
+  --wb-text: #1a1d21;
+  --wb-text-muted: #5b6470;
+  --wb-text-disabled: #9aa1ad;
+  --wb-status-success: #1a7f37;
+  --wb-status-warning: #9a6700;
+  --wb-status-error: #d1242f;
+  --wb-grid-minor: #dde1e7;
+  --wb-grid-major: #c3c9d2;
+  --wb-axis-x: #c93a3a;
+  --wb-axis-y: #2f9e44;
+}
