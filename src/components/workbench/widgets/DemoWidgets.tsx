@@ -12,6 +12,7 @@ import {
   Snowflake,
   Terminal,
 } from "lucide-react";
+import { useToastsOptional } from "../../../workbench/notifications";
 import { PropertyRow } from "../primitives/PropertyRow";
 
 /* Compact demo widgets proving the registry. Static content, no domain logic. */
@@ -199,7 +200,12 @@ export function JobsWidget() {
 }
 
 export function NotificationsWidget() {
+  // Recent global toasts feed the top of the list; without a provider
+  // (standalone render) the widget falls back to static demo content.
+  const toasts = useToastsOptional()?.toasts ?? [];
+  const recent = toasts.slice(-3).reverse();
   const notes = [
+    ...recent.map((toast) => ({ icon: Bell, text: toast.title })),
     { icon: Bell, text: "Plot job finished: Layout1" },
     { icon: Gauge, text: "GRID snap set to 20px" },
   ];

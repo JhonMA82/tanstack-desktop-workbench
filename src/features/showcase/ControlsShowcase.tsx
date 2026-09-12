@@ -23,6 +23,7 @@ import {
   Slider,
   Switch,
 } from "../../components/workbench/primitives/Toggles";
+import { InteractionPanel } from "./InteractionPanel";
 import { JobsPanel } from "./JobsPanel";
 import { LayersPanel } from "./LayersPanel";
 import { ModalsPanel } from "./ModalsPanel";
@@ -233,6 +234,7 @@ export function ControlsShowcase() {
 
         <LayersPanel />
         <JobsPanel />
+        <InteractionPanel />
         <ModalsPanel />
       </div>
     </div>

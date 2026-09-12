@@ -1,6 +1,15 @@
-import { type ReactNode, useCallback, useState } from "react";
+import { Maximize, ZoomIn, ZoomOut } from "lucide-react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useStatus } from "../../../workbench/status";
 import type { ViewportCoords } from "../../../workbench/types";
+import { IconButton } from "../primitives/IconButton";
+import { type PanZoomState, usePanZoom } from "./usePanZoom";
 import { ViewportGrid } from "./ViewportGrid";
 import { ViewportOverlays } from "./ViewportOverlays";
 
@@ -10,6 +19,12 @@ interface ViewportProps {
   styleLabel?: string;
   scaleLabel?: string;
   onCoordsChange?: (coords: ViewportCoords) => void;
+  /**
+   * Opt-in pan/zoom: wheel zooms toward the cursor, drag pans, and a
+   * zoom-controls overlay appears. Defaults to false (legacy behavior).
+   */
+  interactive?: boolean;
+  onTransformChange?: (state: PanZoomState) => void;
 }
 
 /**
@@ -22,9 +37,16 @@ export function Viewport({
   styleLabel,
   scaleLabel,
   onCoordsChange,
+  interactive = false,
+  onTransformChange,
 }: ViewportProps) {
   const { isActive } = useStatus();
   const [pointer, setPointer] = useState({ x: 0, y: 0, inside: false });
+  const panZoom = usePanZoom();
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{ startX: number; startY: number } | null>(null);
+  const transformRef = useRef(onTransformChange);
+  transformRef.current = onTransformChange;
   // Presets that never register a grid status item still reuse the viewport:
   // an unknown item means "no grid", never a crash.
   let showGrid = false;
@@ -49,22 +71,149 @@ export function Viewport({
     [onCoordsChange],
   );
 
+  // Report transform after every pan/zoom commit (single sync point, so
+  // handlers never report stale state).
+  const { x: tx, y: ty, k: tk } = panZoom;
+  useEffect(() => {
+    transformRef.current?.({ x: tx, y: ty, k: tk });
+  }, [tx, ty, tk]);
+
+  // Native non-passive wheel listener: React attaches onWheel passively,
+  // so preventDefault (no page scroll while zooming) needs this.
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!interactive || !node) {
+      return;
+    }
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const rect = node.getBoundingClientRect();
+      const cursor = {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      };
+      panZoom.zoomBy(event.deltaY < 0 ? 1.15 : 1 / 1.15, cursor);
+    };
+    node.addEventListener("wheel", onWheel, { passive: false });
+    return () => node.removeEventListener("wheel", onWheel);
+  }, [interactive, panZoom]);
+
+  const handlePointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!interactive || event.button !== 0) {
+        return;
+      }
+      // Overlay controls (zoom buttons) handle their own pointer events.
+      if ((event.target as HTMLElement).closest("[data-viewport-overlay]")) {
+        return;
+      }
+      dragRef.current = { startX: event.clientX, startY: event.clientY };
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    },
+    [interactive],
+  );
+
+  const handlePointerMovePan = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const drag = dragRef.current;
+      if (!interactive || !drag) {
+        return;
+      }
+      panZoom.panBy(event.movementX, event.movementY);
+    },
+    [interactive, panZoom],
+  );
+
+  const endPan = useCallback(() => {
+    dragRef.current = null;
+  }, []);
+
+  // Keyboard zoom when the viewport is focused. None of "+"/"-"/"0"
+  // collide with registered demo shortcuts (V/L/C/M, Z/P, G/F8/F3,
+  // Ctrl+K); stopPropagation keeps the global dispatcher from seeing them.
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (!interactive) {
+        return;
+      }
+      if (event.key === "+" || event.key === "=") {
+        event.preventDefault();
+        event.stopPropagation();
+        panZoom.zoomIn();
+      } else if (event.key === "-" || event.key === "_") {
+        event.preventDefault();
+        event.stopPropagation();
+        panZoom.zoomOut();
+      } else if (event.key === "0") {
+        event.preventDefault();
+        event.stopPropagation();
+        panZoom.reset();
+      }
+    },
+    [interactive, panZoom],
+  );
+
   return (
     <div
+      ref={containerRef}
       role="img"
       aria-label="Drawing viewport. Move the pointer to read coordinates."
-      className="relative min-w-0 flex-1 cursor-crosshair overflow-hidden bg-[var(--wb-background)]"
+      tabIndex={interactive ? 0 : undefined}
+      className={`relative min-w-0 flex-1 overflow-hidden bg-[var(--wb-background)] ${interactive ? "cursor-grab active:cursor-grabbing" : "cursor-crosshair"}`}
       onMouseMove={handleMove}
       onMouseLeave={() => setPointer((prev) => ({ ...prev, inside: false }))}
+      onPointerDown={handlePointerDown}
+      onPointerMove={interactive ? handlePointerMovePan : undefined}
+      onPointerUp={endPan}
+      onPointerCancel={endPan}
+      onKeyDown={handleKeyDown}
     >
       {showGrid ? <ViewportGrid /> : null}
-      {children}
+      {interactive ? (
+        <div
+          aria-hidden
+          className="absolute inset-0 origin-top-left"
+          style={{ transform: panZoom.transform }}
+        >
+          {children}
+        </div>
+      ) : (
+        children
+      )}
       <ViewportOverlays
         pointer={pointer}
         viewLabel={viewLabel}
         styleLabel={styleLabel}
         scaleLabel={scaleLabel}
       />
+      {interactive ? (
+        <div
+          data-viewport-overlay
+          className="absolute bottom-2 right-2 flex items-center gap-1 rounded-sm border border-[var(--wb-border)] bg-black/55 px-1 py-0.5"
+        >
+          <IconButton
+            icon={ZoomOut}
+            label="Zoom out"
+            onClick={() => panZoom.zoomOut()}
+          />
+          <span
+            aria-live="polite"
+            className="wb-mono min-w-11 px-1 text-center text-[10px] text-[var(--wb-text)]"
+          >
+            {Math.round(panZoom.k * 100)}%
+          </span>
+          <IconButton
+            icon={ZoomIn}
+            label="Zoom in"
+            onClick={() => panZoom.zoomIn()}
+          />
+          <IconButton
+            icon={Maximize}
+            label="Reset view"
+            onClick={() => panZoom.reset()}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

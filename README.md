@@ -265,6 +265,53 @@ Dialogs: `Dialog` (+ `ConfirmDialog`/`InfoDialog`) demoed in `ModalsPanel` (form
 
 Import it in `src/styles/global.css` and set `data-theme="graphite"` on `<html>`.
 
+## Toasts
+
+Global notification dispatch (`src/workbench/notifications.tsx` + `ToastStack`):
+
+```tsx
+const { notify, dismiss, clear } = useToasts();
+notify({ title: "Plot finished", message: "Layout1 sent to PDF.", tone: "success" });
+notify({
+  title: "Review layers",
+  tone: "info",
+  action: { label: "Show layers", command: "layers.show-all" }, // registered command, no inline logic
+});
+```
+
+- Tones: `info | success | warning | error`. Defaults auto-dismiss after 5s;
+  errors are sticky until dismissed. Override per toast with `durationMs`
+  (`null` = sticky).
+- Stack caps at 4 (oldest pruned). Hover pauses the auto-dismiss timer.
+- Mount point: `ToastsProvider` + `<ToastStack />` live once in
+  `WorkbenchShell`, so all presets inherit them. Cards are token-styled
+  (`--wb-*` only), bottom-right above the status bar, `role="status"`/`alert`
+  with `aria-live="polite"`.
+- The Notifications demo widget shows recent toasts first, then static lines
+  (it degrades gracefully outside the provider via `useToastsOptional`).
+
+## Pan/zoom viewport
+
+Opt-in interactive mode on the generic `Viewport` (no fork, no preset changes):
+
+```tsx
+import { usePanZoom, clampScale, zoomAt, toTransform } from "./usePanZoom";
+
+<Viewport interactive onTransformChange={({ x, y, k }) => console.log(x, y, k)}>
+  <MyRenderer />
+</Viewport>
+```
+
+- `usePanZoom()` owns `{ x, y, k }` plus `zoomIn/zoomOut/zoomBy/panBy/reset`;
+  pure math (`clampScale`, cursor-anchored `zoomAt`, `toTransform`) is
+  extracted and unit-tested. Scale clamps to 0.2–4.
+- `interactive` (default `false`) enables wheel-to-zoom toward the cursor,
+  primary-button drag-to-pan (overlay controls excluded), and a zoom
+  controls overlay (in/out/reset + `%` readout, `IconButton` styling).
+- Keyboard `+`/`-`/`0` when the viewport is focused; none collide with the
+  global shortcut dispatcher (`stopPropagation` guards the rest).
+- Live demo: `/demo/controls` → "Toasts" + "Pan & zoom viewport" panels.
+
 ## Commands
 
 | Command | Purpose |
