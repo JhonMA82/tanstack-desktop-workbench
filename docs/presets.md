@@ -1,6 +1,6 @@
 # Preset catalog
 
-Five declarative layout presets compose the same shell. A preset declares
+Six declarative layout presets compose the same shell. A preset declares
 **composition** (which capability ids live in each visual slot plus default
 features); it never implements domain logic. Features declare **capabilities**
 (what the app can do). The manifest picks one preset and adjusts it with
@@ -65,6 +65,26 @@ features); it never implements domain logic. Features declare **capabilities**
 └──────────────────────────────────────────────────────┘
 ```
 
+### monitoring
+
+```text
+┌──────────────────────────────────────────────────────┐
+│ System summary                                       │
+├──────────────────────────────────────────────────────┤
+│ Active alerts (persistent strip)                     │
+├───────────┬──────────────────────────────┬────────────┤
+│ Source    │                              │            │
+│ nav       │        Tile wall             │  (empty)   │
+├───────────┴──────────────────────────────┴────────────┤
+│ Event stream                                         │
+├──────────────────────────────────────────────────────┤
+│ Status line (read-only)                              │
+└──────────────────────────────────────────────────────┘
+```
+
+Observe-only: no controls, no inspector, no ribbon. The tile wall is
+the workspace; the alert strip stays visible above it at all times.
+
 ### minimal
 
 ```text
@@ -86,6 +106,7 @@ features); it never implements domain logic. Features declare **capabilities**
 | ide | toolbar, activity-bar, explorer, viewport, tabs, bottom-panel, console, output, statusbar |
 | studio | workspace-selector, toolbar, hierarchy, explorer, viewport, inspector, timeline, bottom-panel |
 | operator | system-status, navigation, viewport, controls, alarms, notifications, statusbar |
+| monitoring | system-summary, source-nav, tile-wall, viewport, alert-strip, event-stream, statusbar |
 | minimal | toolbar, viewport, statusbar |
 
 ## Feature catalog
@@ -94,7 +115,9 @@ Ribbon family: `ribbon`, `tool-rail`, `command-bar`, `command-palette`,
 `toolbar`. Navigation: `activity-bar`, `navigation`, `workspace-selector`,
 `tabs`. Panels: `explorer`, `hierarchy`, `inspector`, `secondary-sidebar`,
 `bottom-panel`, `console`, `output`, `timeline`. Operation: `system-status`,
-`controls`, `alarms`, `notifications`. Core: `viewport` (load-bearing),
+`controls`, `alarms`, `notifications`. Monitoring (observe-only):
+`system-summary`, `source-nav`, `tile-wall`, `alert-strip`,
+`event-stream`. Core: `viewport` (load-bearing),
 `statusbar`.
 
 ## with / without semantics
@@ -115,6 +138,22 @@ throws a readable multi-line error for incoherent combinations.
 4. Every disabled feature collapses its slot: compositions render `null` for
    missing capabilities, so no empty chrome bars remain.
 
+## monitoring vs operator: when to use which
+
+Both presets watch a system, but only one touches it:
+
+- **monitoring** observes. Pick it for control rooms, dashboards, and
+  status walls: tile-wall dominant, persistent alert strip, event stream.
+  It ships NO control buttons — acknowledging an alert only hides it
+  locally; it issues no commands. The right slot stays empty (no
+  inspector) and there is no ribbon.
+- **operator** operates. Pick it when a human must act: persistent
+  controls (run/stop, overrides) beside the main view, alarms one glance
+  away. That is the operator preset's job, never monitoring's.
+
+If the screen needs a single button that changes the system, it is an
+operator screen.
+
 ## Manifest reference
 
 `src/app/workbench.config.ts`:
@@ -122,7 +161,7 @@ throws a readable multi-line error for incoherent combinations.
 ```ts
 {
   appName: "My App",
-  layout: "ide", // technical-ribbon | ide | studio | operator | minimal
+  layout: "ide", // technical-ribbon | ide | studio | operator | monitoring | minimal
   with: ["notifications"], // extras on top of the preset defaults
   without: ["secondary-sidebar"], // removals that stay coherent
   theme: "ocstudio",

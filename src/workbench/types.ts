@@ -108,7 +108,12 @@ export type FeatureId =
   | "system-status"
   | "hierarchy"
   | "timeline"
-  | "workspace-selector";
+  | "workspace-selector"
+  | "tile-wall"
+  | "alert-strip"
+  | "event-stream"
+  | "system-summary"
+  | "source-nav";
 
 /** Visual slot of a layout preset: where capabilities are composed. */
 export type LayoutSlotId = "top" | "left" | "center" | "right" | "bottom";

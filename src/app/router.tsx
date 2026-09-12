@@ -14,6 +14,8 @@ import { TechnicalRibbonPage } from "../features/technical-ribbon/TechnicalRibbo
 import "../features/ide/idePreset";
 import { MinimalWorkbench } from "../features/minimal/MinimalWorkbench";
 import "../features/minimal/minimalPreset";
+import { MonitoringWorkbench } from "../features/monitoring/MonitoringWorkbench";
+import "../features/monitoring/monitoringPreset";
 import { OperatorWorkbench } from "../features/operator/OperatorWorkbench";
 import "../features/operator/operatorPreset";
 import { StudioWorkbench } from "../features/studio/StudioWorkbench";
@@ -44,6 +46,7 @@ const presetComponents: Record<string, PresetComponent> = {
   ide: IdeWorkbench,
   studio: StudioWorkbench,
   operator: OperatorWorkbench,
+  monitoring: MonitoringWorkbench,
   minimal: MinimalWorkbench,
 };
 
@@ -52,6 +55,7 @@ const previewPresets = [
   "ide",
   "studio",
   "operator",
+  "monitoring",
   "minimal",
 ];
 

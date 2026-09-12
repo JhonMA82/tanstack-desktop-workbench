@@ -3,6 +3,8 @@ import "../features/ide/idePreset";
 import { idePreset } from "../features/ide/idePreset";
 import "../features/minimal/minimalPreset";
 import { minimalPreset } from "../features/minimal/minimalPreset";
+import "../features/monitoring/monitoringPreset";
+import { monitoringPreset } from "../features/monitoring/monitoringPreset";
 import "../features/operator/operatorPreset";
 import { operatorPreset } from "../features/operator/operatorPreset";
 import "../features/studio/studioPreset";
@@ -20,6 +22,7 @@ const allPresets: LayoutPreset[] = [
   idePreset,
   studioPreset,
   operatorPreset,
+  monitoringPreset,
   minimalPreset,
 ];
 
@@ -54,6 +57,15 @@ const expectedDefaults: Record<string, FeatureId[]> = {
     "notifications",
     "statusbar",
   ],
+  monitoring: [
+    "system-summary",
+    "source-nav",
+    "tile-wall",
+    "viewport",
+    "alert-strip",
+    "event-stream",
+    "statusbar",
+  ],
   minimal: ["toolbar", "viewport", "statusbar"],
 };
 
@@ -68,12 +80,13 @@ describe("preset defaults", () => {
 });
 
 describe("preset registration", () => {
-  it("registers all five presets and no legacy ids", () => {
+  it("registers all six presets and no legacy ids", () => {
     for (const id of [
       "technical-ribbon",
       "ide",
       "studio",
       "operator",
+      "monitoring",
       "minimal",
     ]) {
       expect(globalPresets.has(id)).toBe(true);
@@ -91,6 +104,11 @@ describe("new feature ids", () => {
     "hierarchy",
     "timeline",
     "workspace-selector",
+    "tile-wall",
+    "alert-strip",
+    "event-stream",
+    "system-summary",
+    "source-nav",
   ];
 
   it("recognizes every new feature id", () => {

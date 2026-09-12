@@ -101,7 +101,7 @@ Data-driven: `RibbonTab[]` (`tabs -> groups -> tool ids`), first tool per group 
 ## 9. Layouts
 
 `registerLayout({ id, name, railTools?, rightWidgets?, bottomWidgets? })`.
-`technical-ribbon` is the first preset; `ide / studio / operator / minimal` arrive in Phase B without shell edits.
+`technical-ribbon` is the first preset; `ide / studio / operator / monitoring / minimal` arrive in Phase B without shell edits.
 `globalLayouts.setActive(id)` switches; unknown ids throw.
 
 ## 10. Themes
@@ -179,7 +179,9 @@ globalLayouts.registerLayout({
       `bottom-panel`, `activity-bar`, `tabs`, `toolbar`, `notifications`,
       `command-palette`, `secondary-sidebar`, plus the operation/studio
       capabilities (`navigation`, `controls`, `alarms`, `system-status`,
-      `hierarchy`, `timeline`, `workspace-selector`)).
+      `hierarchy`, `timeline`, `workspace-selector`, plus the
+      monitoring observe-only capabilities (`system-summary`,
+      `source-nav`, `tile-wall`, `alert-strip`, `event-stream`)).
     Full catalog, composition sketches, and how-to guides live in
     [`docs/presets.md`](docs/presets.md).
 
@@ -246,7 +248,7 @@ Reset: delete the `tanstack-workbench:v1` key in devtools, or call
 ## Presets
 
 Five declarative presets compose the same shell: `technical-ribbon`, `ide`,
-`studio`, `operator`, `minimal`. `/` renders the manifest layout;
+`studio`, `operator`, `monitoring`, `minimal`. `/` renders the manifest layout;
 `/presets/<id>` previews each one (demo-only switcher, not part of the shell).
 See [`docs/presets.md`](docs/presets.md) for the catalog.
 

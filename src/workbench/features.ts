@@ -27,13 +27,24 @@ export const KNOWN_FEATURES: readonly FeatureId[] = [
   "hierarchy",
   "timeline",
   "workspace-selector",
+  "tile-wall",
+  "alert-strip",
+  "event-stream",
+  "system-summary",
+  "source-nav",
 ];
 
 /**
  * Load-bearing capabilities: disabling one leaves the preset without a
  * workspace, so it is always a validation error, never a silent removal.
+ * The monitoring preset additionally treats its tile wall as load-bearing:
+ * a control room without tiles has nothing to observe.
  */
-const LOAD_BEARING_FEATURES: readonly FeatureId[] = ["viewport"];
+const DEFAULT_LOAD_BEARING: readonly FeatureId[] = ["viewport"];
+
+const PRESET_LOAD_BEARING: Record<string, readonly FeatureId[]> = {
+  monitoring: ["viewport", "tile-wall"],
+};
 
 /**
  * Slot capability ids that can host each feature. A preset hosts a feature
@@ -63,6 +74,11 @@ const FEATURE_CAPABILITIES: Record<FeatureId, readonly string[]> = {
   hierarchy: ["hierarchy"],
   timeline: ["timeline"],
   "workspace-selector": ["workspace-selector"],
+  "tile-wall": ["tile-wall"],
+  "alert-strip": ["alert-strip"],
+  "event-stream": ["event-stream"],
+  "system-summary": ["system-summary"],
+  "source-nav": ["source-nav"],
 };
 
 export interface FeatureOverrides {
@@ -102,7 +118,8 @@ export function validatePresetCombination(
     }
   }
 
-  for (const loadBearing of LOAD_BEARING_FEATURES) {
+  for (const loadBearing of PRESET_LOAD_BEARING[preset.id] ??
+    DEFAULT_LOAD_BEARING) {
     if (!features.includes(loadBearing)) {
       errors.push(
         `Feature "${loadBearing}" is load-bearing for preset "${preset.id}" and cannot be disabled.`,
