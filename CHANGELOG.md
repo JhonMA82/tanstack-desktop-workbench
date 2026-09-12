@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-12
+
+### Added
+
+- UI states: `EmptyState`, `LoadingState`/`Skeleton` and `ErrorState`
+  primitives, plus an `ErrorBoundary` mounted once at the router root with
+  retry recovery and a throw-and-recover showcase demo (110 tests).
+
 ## [0.5.0] - 2026-09-12
 
 ### Added
@@ -91,7 +99,9 @@ reference interface.
 - Test suites for every registry, feature resolution and preset defaults
   (53 tests).
 
-[Unreleased]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.4.0...v0.5.0
 [0.5.0]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.3.0...v0.4.0
 [0.4.0]: https://github.com/JhonMA82/tanstack-desktop-workbench/compare/v0.3.0...v0.4.0
