@@ -1,6 +1,6 @@
 {
   "name": "tanstack-workbench",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Extensible desktop-style workbench boilerplate (React + TanStack Router + Tailwind v4). Seven declarative layout presets with a with/without feature model.",
   "type": "module",
