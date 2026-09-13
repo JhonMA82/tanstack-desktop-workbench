@@ -1,7 +1,7 @@
 <!-- Generated file — do not edit manually. Regenerate with `bun run ai:context`. -->
 # Generated context — Technical Workbench
 
-- package: tanstack-workbench@0.3.0 (boilerplate source)
+- package: tanstack-workbench@0.9.0 (boilerplate source)
 - stack: bun@1.4.0, @biomejs/biome@2.5.13, @tailwindcss/vite@4.3.3, @tanstack/react-router@1.170.35, @types/react@19.3.0, @types/react-dom@19.3.0, @vitejs/plugin-react@6.1.1, bun-types@1.4.2, lucide-react@1.45.0, react@19.3.0, react-dom@19.3.0, tailwindcss@4.3.3, typescript@5.9.3, vite@8.3.0
 - preset: technical-ribbon (layout technical-ribbon)
 - theme: ocstudio (files: light, ocstudio)
@@ -16,7 +16,7 @@
 - presets: ide, minimal, monitoring, operator, setup, studio, technical-ribbon
 - scripts: ai:context, ai:context:check, build, dev, generate:command, generate:feature, generate:preset, generate:project, generate:status-item, generate:tool, generate:widget, lint, self-test:scaffolding, test, typecheck, validate, validate:architecture, validate:workbench
 - templates: inline templates in scripts/generate-*.ts (no templates dir)
-- digest: b44cad671b4d62c3
+- digest: 2ba4f770808689cf
 
 ## Presets (defaults)
 
