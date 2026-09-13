@@ -214,6 +214,7 @@ describe("generate:project", () => {
       "generate-project.ts",
       `-- dry --preset ide --theme light --dest ${dest} --dry-run`,
     );
+    expect(out).toContain("kept presets: ide");
     expect(out).toContain("prune features:");
     expect(out).toContain("src/features/showcase");
     expect(out).toContain("src/features/minimal");
@@ -222,6 +223,37 @@ describe("generate:project", () => {
     expect(out).toContain("src/styles/themes/ocstudio.css");
     expect(out).toContain("rewrite:");
     expect(out).toContain("src/app/router.tsx");
+    expect(existsSync(dest)).toBe(false);
+  });
+
+  it("--dry-run reports kept presets and the demo cleanup summary", () => {
+    const dest = join(makeTemp("wb-proj-"), "out");
+    const out = runScript(
+      "generate-project.ts",
+      `-- dry --preset technical-ribbon --with-presets ide,studio --with-presets operator --dest ${dest} --dry-run`,
+    );
+    expect(out).toContain(
+      "kept presets: technical-ribbon, ide, studio, operator",
+    );
+    expect(out).toContain("manifest layout: technical-ribbon");
+    expect(out).toContain(
+      "prune features: src/features/minimal, src/features/monitoring, src/features/setup, src/features/showcase",
+    );
+    expect(out).toContain("src/features/minimal");
+    expect(out).toContain("demo cleanup (technical-ribbon):");
+    expect(out).toContain("DemoGeometry");
+    expect(out).toContain("demo check (ide, studio, operator):");
+    expect(existsSync(dest)).toBe(false);
+  });
+
+  it("rejects unknown --with-presets before materializing", () => {
+    const dest = join(makeTemp("wb-proj-"), "out");
+    expect(() =>
+      runScript(
+        "generate-project.ts",
+        `-- bad --preset minimal --with-presets nope --dest ${dest} --dry-run`,
+      ),
+    ).toThrow("Unknown preset");
     expect(existsSync(dest)).toBe(false);
   });
 

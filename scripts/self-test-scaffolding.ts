@@ -4,7 +4,8 @@
  * check end-to-end contracts (not just helper units).
  *
  * Cases: one per preset (all seven) plus technical-ribbon with custom
- * with/without. Per case: materialization, final config, prune assertions
+ * with/without plus a multi-preset case (technical-ribbon + ide via
+ * --with-presets). Per case: materialization, final config, prune assertions
  * (no showcase, no unchosen presets/themes, no demo routes), source-only
  * removal, .boilerplate.json, generated AI context plus ai:context:check
  * passing INSIDE the derived project, per-case typecheck (node_modules
@@ -59,6 +60,7 @@ interface Case {
   theme: string;
   with?: string[];
   without?: string[];
+  withPresets?: string[];
   appName: string;
 }
 
@@ -120,6 +122,13 @@ const CASES: Case[] = [
     without: ["inspector"],
     appName: "Probe Custom",
   },
+  {
+    name: "probe-multi",
+    preset: "technical-ribbon",
+    theme: "ocstudio",
+    withPresets: ["ide"],
+    appName: "Probe Multi",
+  },
 ];
 
 function run(cmd: string, cwd: string): string {
@@ -144,17 +153,21 @@ function expectContains(haystack: string, needle: string, what: string): void {
 
 function checkCase(parent: string, kase: Case): void {
   const dest = join(parent, kase.name);
+  const kept = [kase.preset, ...(kase.withPresets ?? [])];
   const withFlag = kase.with?.length ? ` --with ${kase.with.join(",")}` : "";
   const withoutFlag = kase.without?.length
     ? ` --without ${kase.without.join(",")}`
     : "";
+  const withPresetsFlag = kase.withPresets?.length
+    ? ` --with-presets ${kase.withPresets.join(",")}`
+    : "";
   console.log(
-    `case: ${kase.name} (preset ${kase.preset}, theme ${kase.theme})`,
+    `case: ${kase.name} (preset ${kase.preset}, theme ${kase.theme}${kase.withPresets?.length ? ` + ${kase.withPresets.join(",")}` : ""})`,
   );
 
   // Materialize the real project through the real generator.
   run(
-    `bun ${join(SCRIPTS_DIR, "generate-project.ts")} -- ${kase.name} --preset ${kase.preset} --theme ${kase.theme}${withFlag}${withoutFlag} --app-name "${kase.appName}" --dest ${dest}`,
+    `bun ${join(SCRIPTS_DIR, "generate-project.ts")} -- ${kase.name} --preset ${kase.preset} --theme ${kase.theme}${withFlag}${withoutFlag}${withPresetsFlag} --app-name "${kase.appName}" --dest ${dest}`,
     REPO_ROOT,
   );
   if (!existsSync(join(dest, "src", "app", "workbench.config.ts"))) {
@@ -178,10 +191,10 @@ function checkCase(parent: string, kase: Case): void {
     expectContains(config, id, `${kase.name} without:${id}`);
   }
 
-  // Minimal derived project: only the kept preset+theme ship.
+  // Minimal derived project: only the kept presets+theme ship.
   for (const other of ALL_PRESET_IDS) {
     if (
-      other !== kase.preset &&
+      !kept.includes(other) &&
       existsSync(join(dest, "src", "features", other))
     ) {
       fail(
@@ -192,10 +205,12 @@ function checkCase(parent: string, kase: Case): void {
   if (existsSync(join(dest, "src", "features", "showcase"))) {
     fail(`Self-test failure (${kase.name}): showcase was not pruned.`);
   }
-  if (!existsSync(join(dest, "src", "features", kase.preset))) {
-    fail(
-      `Self-test failure (${kase.name}): kept preset dir missing: src/features/${kase.preset}.`,
-    );
+  for (const keep of kept) {
+    if (!existsSync(join(dest, "src", "features", keep))) {
+      fail(
+        `Self-test failure (${kase.name}): kept preset dir missing: src/features/${keep}.`,
+      );
+    }
   }
   for (const otherTheme of ALL_THEME_IDS) {
     if (otherTheme === kase.theme) {
@@ -239,10 +254,99 @@ function checkCase(parent: string, kase: Case): void {
     );
   }
   expectContains(router, `"${kase.preset}"`, `${kase.name} router kept preset`);
+  for (const extra of kase.withPresets ?? []) {
+    expectContains(router, `"${extra}"`, `${kase.name} router kept preset`);
+  }
   // RootLayout renders the Outlet directly; the index route renders the
   // single kept preset.
   expectContains(router, "<Outlet />", `${kase.name} router outlet`);
   expectContains(router, `path: "/"`, `${kase.name} router index`);
+
+  // Clean-by-default demo cleanup: every derived technical-ribbon copy
+  // ships the minimal end-to-end example, never the demo catalog.
+  if (kept.includes("technical-ribbon")) {
+    const ribbonDir = join(dest, "src", "features", "technical-ribbon");
+    if (existsSync(join(ribbonDir, "DemoGeometry.tsx"))) {
+      fail(`Self-test failure (${kase.name}): DemoGeometry was not pruned.`);
+    }
+    if (existsSync(join(ribbonDir, "technicalRibbonTools"))) {
+      fail(
+        `Self-test failure (${kase.name}): demo tool subdir was not pruned.`,
+      );
+    }
+    const ribbon = readFileSync(
+      join(ribbonDir, "technicalRibbonRibbon.ts"),
+      "utf8",
+    );
+    for (const prunedTab of [
+      '"annotate"',
+      '"Annotate"',
+      '"view"',
+      '"View"',
+      '"manage"',
+      '"Manage"',
+    ]) {
+      if (ribbon.includes(prunedTab)) {
+        fail(
+          `Self-test failure (${kase.name}): demo ribbon tab leaked (${prunedTab}).`,
+        );
+      }
+    }
+    const commands = readFileSync(
+      join(ribbonDir, "technicalRibbonCommands.ts"),
+      "utf8",
+    );
+    for (const keptCommand of [
+      '"tool.select"',
+      '"draw.line"',
+      '"draw.circle"',
+      '"grid.toggle"',
+    ]) {
+      expectContains(commands, keptCommand, `${kase.name} kept command`);
+    }
+    for (const prunedCommand of [
+      "modify.move",
+      "view.zoom",
+      "app.load",
+      "annotate.mtext",
+      "layer.props",
+    ]) {
+      if (commands.includes(prunedCommand)) {
+        fail(
+          `Self-test failure (${kase.name}): demo command leaked (${prunedCommand}).`,
+        );
+      }
+    }
+    const widgets = readFileSync(
+      join(ribbonDir, "technicalRibbonWidgets.ts"),
+      "utf8",
+    );
+    expectContains(widgets, '"properties"', `${kase.name} kept widget`);
+    if (widgets.includes("DemoWidgets")) {
+      fail(`Self-test failure (${kase.name}): demo widgets leaked.`);
+    }
+    const status = readFileSync(
+      join(ribbonDir, "technicalRibbonStatus.ts"),
+      "utf8",
+    );
+    expectContains(status, '"grid"', `${kase.name} kept status`);
+    for (const prunedAid of ["osnap", "ortho"]) {
+      if (status.includes(prunedAid)) {
+        fail(
+          `Self-test failure (${kase.name}): demo status aid leaked (${prunedAid}).`,
+        );
+      }
+    }
+    const ribbonLayout = readFileSync(
+      join(ribbonDir, "technicalRibbonLayout.tsx"),
+      "utf8",
+    );
+    if (ribbonLayout.includes("DemoGeometry")) {
+      fail(
+        `Self-test failure (${kase.name}): layout still renders DemoGeometry.`,
+      );
+    }
+  }
 
   // Source-only files stay out of derived projects; extension generators stay in.
   for (const sourceOnly of [

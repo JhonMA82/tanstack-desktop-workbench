@@ -31,6 +31,7 @@ bun run generate:project -- printnc-control \
 | --- | --- |
 | `<name>` | Project/package name (kebab-case) |
 | `--preset` | Layout preset id (default: `technical-ribbon`) |
+| `--with-presets` | Extra presets to keep (repeatable, comma-separated; validated against real ids) |
 | `--theme` | Theme id (default: `ocstudio`) |
 | `--with` / `--without` | Feature adjustments (repeatable, comma-separated) |
 | `--app-name` | Display name (default: Title Case of name) |
@@ -108,11 +109,20 @@ Provenance marker written into every derived project:
 
     ## Minimal derived projects (pruning)
 
-    A derived project ships ONLY the chosen preset and theme. The prune runs
-    as a transform step on the STAGING copy (`pruneStagingToMinimal` in
-    `scripts/generate-project.ts`); the `SOURCE_ONLY` set above stays unchanged
-    and the boilerplate source keeps all 7 presets and both themes
-    (`bun run validate` stays green there).
+    A derived project ships ONLY the kept presets (`--preset` plus
+    `--with-presets`, one preset when the flag is absent) and the chosen
+    theme. The prune runs as a transform step on the STAGING copy
+    (`pruneStagingToMinimal` in `scripts/generate-project.ts`); the
+    `SOURCE_ONLY` set above stays unchanged and the boilerplate source keeps
+    all 7 presets and both themes (`bun run validate` stays green there).
+
+    Switching presets inside a derived app is configuration, not generation:
+    set the `layout` key in `src/app/workbench.config.ts` to any kept preset
+    id (the `WorkbenchLayoutId` union lists exactly the kept ones; the router
+    maps every kept preset), then run `bun run ai:context` to refresh the
+    generated context. The preview bar is still removed: with no gallery to
+    browse, the DEMO-ONLY `PresetSwitcher`/`ThemeSwitcher` and the
+    `/presets/$presetId` route have nothing to do in the derived app.
 
         What is pruned (staging only):
     
@@ -126,17 +136,19 @@ Provenance marker written into every derived project:
           README (app name, resolved preset+theme+features, useful commands,
           pointers to `docs/scaffolding.md` and `docs/ai/generated-context.md`).
 
-    - `src/features/`: every known preset dir except the chosen one, always
-      plus `src/features/showcase/` (internal demos). Custom feature dirs
-      created via `generate:feature` are NOT in the known-preset list and are
-      kept — pruning never deletes app extensions.
+    - `src/features/`: every known preset dir except the kept ones, always
+      plus `src/features/showcase/` (internal demos). With `--with-presets
+      ide,studio`, only `technical-ribbon` (the manifest preset), `ide`
+      and `studio` ship. Custom feature dirs created via `generate:feature`
+      are NOT in the known-preset list and are kept — pruning never
+      deletes app extensions.
     - `src/styles/themes/`: every `<theme>.css` except the chosen one
       (`tokens.css` and `global.css` stay; `global.css` is rewritten to import
       only the kept theme).
-    - `src/app/router.tsx`: `presetComponents` collapses to the single kept
-      preset; the `/demo/controls` route, its `ControlsShowcase` import, and
-      the demo `Link` are removed. The app boots into its preset with no
-      demo nav.
+    - `src/app/router.tsx`: `presetComponents` collapses to the kept
+      presets (one entry without `--with-presets`); the `/demo/controls`
+      route, its `ControlsShowcase` import, and the demo `Link` are
+      removed. The app boots into its manifest preset with no demo nav.
     - `src/app/router.tsx` (preview bar): the derived app ships NO preview
       chrome. The DEMO-ONLY `PresetSwitcher` (preset links) and
       `ThemeSwitcher` definitions and usages are deleted, the whole
@@ -151,7 +163,9 @@ Provenance marker written into every derived project:
       `<Outlet />`/`ErrorBoundary`/kept preset). Stale derived routers are
       never silently accepted.
     - Catalog enumerations: `src/app/workbench.config.ts` collapses
-      `WorkbenchLayoutId`/`ThemeId`/`workbenchThemes` to the single kept values.
+      `WorkbenchLayoutId` to the kept preset union (`"ide"` alone, or
+      `"technical-ribbon" | "ide"` with `--with-presets ide`) and
+      `ThemeId`/`workbenchThemes` to the single kept theme.
     - Catalog tests are adapted, never deleted without replacement:
       `src/workbench/presets.test.ts` and `src/app/workbench.config.test.ts`
       assert the pruned catalog; `src/styles/themes/theme-parity.test.ts`
@@ -227,9 +241,59 @@ Provenance marker written into every derived project:
     > mounted inside `TechnicalRibbonWorkbench` — a follow-up outside the
     > file scope of this change. Until then, shortcut selection is
     > state-proven (unit test) rather than highlight-visible.
+    >
+    > Derived apps keep the minimal wiring only: `draw.line`→`line` (L),
+    > `draw.circle`→`circle` (C), `tool.select`→`select` (V), and the `grid`
+    > toggle (G). See "Clean by default" above.
 
-    `--dry-run` prints the prune plan (feature dirs, theme files, rewritten
-    files) without writing; `--force` keeps its marker-only policy unchanged.
+    ## Clean by default: one working example per extension point
+
+    Derived projects ship NO demo content — they ship one minimal,
+    end-to-end example per extension point with real behavior, so the app
+    starts clean and every pattern is learnable from a single place:
+
+    - Viewport: empty. `DemoGeometry.tsx` is deleted and the layout renders
+      a bare `Viewport` (grid + coords chrome intact, driven by the `grid`
+      status toggle). App renderers go where the demo used to be.
+    - Ribbon (technical-ribbon): 1 tab (`Home`) with 1 group (`Draw`) and 3
+      tools (`select`, `line`, `circle`). The rail carries the same 3 tools.
+      Why these three: `select` is the idle tool every workbench needs, and
+      `line`/`circle` prove the full loop (ribbon tab → tool def → command
+      with shortcut → `ToolRegistry` selection → status toggle) with the
+      smallest coherent set.
+    - Commands (technical-ribbon): `tool.select` (V), `draw.line` (L),
+      `draw.circle` (C) — each selecting its tool through the `ToolRegistry`
+      (same lazy, per-registry selection mechanism as the source) — plus
+      `grid.toggle` (G) flipping the `grid` status item. The ~40 demo noop
+      commands (Annotate/View/Manage tabs, `app.*` actions, zoom variants)
+      are removed with the tabs that referenced them.
+    - Widgets (technical-ribbon): 1 visible inspector widget (`properties`,
+      the real `PropertiesWidget`). No hidden demo widgets.
+    - Status (technical-ribbon): 1 real toggle (`grid`, driving
+      `ViewportGrid` visibility). `ortho`/`osnap` go with the demo.
+
+    Coherence is enforced structurally: every ribbon/rail tool id exists in
+    the tool defs, every tool command is registered, and no unused imports
+    survive — the derived project passes strict `tsc`, lint, and its own
+    trimmed `technicalRibbonCommands.test.ts` (same selection/sync/guard
+    coverage, minimal command set).
+
+    Other presets (`ide`/`studio`/`operator`/`monitoring`/`setup`/`minimal`)
+    carry no demo command catalog (verified by grep: `ide`/`studio`/
+    `operator` render `DemoWidgets` widget components structurally with no
+    demo command/tool registrations and no `DemoGeometry`;
+    `monitoring`/`setup` ship local structural data — `monitoringDemo.ts`
+    tile/alert types, `setupDemo.ts` wizard validation; `minimal` is clean),
+    so they are kept as-is — only `technical-ribbon` is rewritten.
+
+    The derived AI context reflects the trimmed preset automatically: it is
+    discovered from the real derived state (registries, preset files), never
+    hand-listed — e.g. a clean technical-ribbon app reports `widgets:
+    properties`, `commands: 4 registered`, `tools: circle, line, select`.
+
+    `--dry-run` prints the prune plan (kept presets, feature dirs, theme
+    files, rewritten files) plus the cleanup summary (what the demo cleanup
+    trims and deletes); `--force` keeps its marker-only policy unchanged.
 
 ## Extension generators
 

@@ -29,7 +29,7 @@ import {
   str,
 } from "./_lib/cli";
 import { ensureDir, isNonEmptyDir, readJson, removeDir } from "./_lib/files";
-import { toKebab, toTitle } from "./_lib/naming";
+import { toCamel, toKebab, toTitle } from "./_lib/naming";
 import { escapeTsString, renderTemplate } from "./_lib/templates";
 
 const SCRIPT = "generate:project";
@@ -46,6 +46,11 @@ const spec: CommandSpec = {
       name: "preset",
       description: "Layout preset id",
       default: "technical-ribbon",
+    },
+    {
+      name: "with-presets",
+      description: "Extra presets to keep (comma-separated)",
+      multiple: true,
     },
     { name: "theme", description: "Theme id", default: "ocstudio" },
     {
@@ -97,6 +102,8 @@ interface BoilerplateMarker {
   sourceVersion: string;
   sourceCommit: string;
   preset: string;
+  /** All kept presets (primary + --with-presets); absent in markers v1. */
+  presets?: string[];
   theme: string;
 }
 
@@ -274,13 +281,18 @@ function copySourceToStaging(repoRoot: string, staging: string): void {
 function renderWorkbenchConfig(options: {
   appName: string;
   layout: string;
+  keptPresets: string[];
   theme: string;
   withFeatures: string[];
   withoutFeatures: string[];
 }): string {
-  // Minimal derived project: the manifest names exactly one preset and one
-  // theme (the pruned catalog). The boilerplate source keeps the full
-  // unions; only staging copies are rewritten here.
+  // Minimal derived project: the manifest names the kept preset catalog
+  // (one entry, or a union with --with-presets) and one theme (the
+  // pruned catalog). The boilerplate source keeps the full unions; only
+  // staging copies are rewritten here. Switching presets is config, not
+  // generation: set `layout` to any kept preset id, then run
+  // `bun run ai:context` to refresh the generated context.
+  const layoutUnion = options.keptPresets.map((id) => `"${id}"`).join(" | ");
   const lines = [
     `import type { FeatureId } from "../workbench/types";`,
     ``,
@@ -291,7 +303,7 @@ function renderWorkbenchConfig(options: {
     ` * Known preset ids come from the preset registry`,
     ` * (see src/workbench/layouts.ts); themes from src/styles/themes/*.css.`,
     ` */`,
-    `export type WorkbenchLayoutId = "{{LAYOUT}}";`,
+    `export type WorkbenchLayoutId = {{LAYOUT_UNION}};`,
     ``,
     `/** Theme id (see src/styles/themes/*.css). Applied to <html> data-theme. */`,
     `export type ThemeId = "{{THEME}}";`,
@@ -338,6 +350,7 @@ function renderWorkbenchConfig(options: {
   return renderTemplate(lines.join("\n"), {
     APP_NAME: escapeTsString(options.appName),
     LAYOUT: options.layout,
+    LAYOUT_UNION: layoutUnion,
     THEME: options.theme,
     WITH_LINE: withLine,
     WITHOUT_LINE: withoutLine,
@@ -427,13 +440,13 @@ const PRUNED_REWRITES = [
 ];
 
 function prunePlan(
-  preset: string,
+  keptPresets: string[],
   theme: string,
   knownThemes: string[],
 ): { featureDirs: string[]; themeFiles: string[] } {
   return {
     featureDirs: [
-      ...PRESET_FEATURE_DIRS.filter((dir) => dir !== preset).map(
+      ...PRESET_FEATURE_DIRS.filter((dir) => !keptPresets.includes(dir)).map(
         (dir) => `src/features/${dir}`,
       ),
       "src/features/showcase",
@@ -445,15 +458,18 @@ function prunePlan(
 }
 
 function prunePlanReport(
-  preset: string,
+  keptPresets: string[],
   theme: string,
   knownThemes: string[],
 ): string {
-  const plan = prunePlan(preset, theme, knownThemes);
+  const plan = prunePlan(keptPresets, theme, knownThemes);
+  const primary = keptPresets[0];
   return [
-    `  prune features: ${plan.featureDirs.join(", ")} (keep src/features/${preset} + custom feature dirs)`,
+    `  kept presets: ${keptPresets.join(", ")} (manifest layout: ${primary}; switch via the layout key in src/app/workbench.config.ts)`,
+    `  prune features: ${plan.featureDirs.join(", ")} (keep ${keptPresets.map((id) => `src/features/${id}`).join(", ")} + custom feature dirs)`,
     `  prune themes: ${plan.themeFiles.join(", ") || "(none)"} (keep src/styles/themes/${theme}.css)`,
     `  rewrite: ${PRUNED_REWRITES.join(", ")}`,
+    ...cleanupReportLines(keptPresets).map((line) => `  ${line}`),
   ].join("\n");
 }
 
@@ -475,11 +491,17 @@ function replaceOrThrow(
   return after;
 }
 
-/** Rewrite the staging router to the single kept preset (no preview/demo chrome). */
-function pruneRouterText(source: string, preset: string): string {
-  const wiring = PRESET_ROUTER_WIRING[preset];
-  if (!wiring) {
-    fail(`Prune failure: no router wiring for preset "${preset}".`);
+/**
+ * Rewrite the staging router to the kept presets (no preview/demo chrome).
+ * The first entry of keptPresets is the manifest layout; the index route
+ * resolves through workbenchConfig.layout, so switching presets is a
+ * config edit, not a router edit.
+ */
+function pruneRouterText(source: string, keptPresets: string[]): string {
+  for (const id of keptPresets) {
+    if (!PRESET_ROUTER_WIRING[id]) {
+      fail(`Prune failure: no router wiring for preset "${id}".`);
+    }
   }
   let out = source;
   out = replaceOrThrow(
@@ -489,7 +511,7 @@ function pruneRouterText(source: string, preset: string): string {
     "router showcase import",
   );
   for (const [id, entry] of Object.entries(PRESET_ROUTER_WIRING)) {
-    if (id === preset) {
+    if (keptPresets.includes(id)) {
       continue;
     }
     out = replaceOrThrow(
@@ -505,10 +527,16 @@ function pruneRouterText(source: string, preset: string): string {
       `router preset import (${id})`,
     );
   }
+  const keptEntries = keptPresets
+    .map((id) => {
+      const entry = PRESET_ROUTER_WIRING[id];
+      return `  "${id}": ${entry.component},`;
+    })
+    .join("\n");
   out = replaceOrThrow(
     out,
     /const presetComponents: Record<string, PresetComponent> = \{[^}]*\};/,
-    `const presetComponents: Record<string, PresetComponent> = {\n  "${preset}": ${wiring.component},\n};`,
+    `const presetComponents: Record<string, PresetComponent> = {\n${keptEntries}\n};`,
     "router presetComponents",
   );
   // The preview bar is DEMO-ONLY: with a single preset there is nothing
@@ -572,7 +600,8 @@ function pruneRouterText(source: string, preset: string): string {
     `  const [theme] = useState(resolveInitialTheme);`,
     "router RootLayout theme state",
   );
-  // The /presets/$presetId route makes no sense with a single preset.
+  // The /presets/$presetId preview route makes no sense in a derived
+  // app: preset switching is a `layout` edit in workbench.config.ts.
   out = replaceOrThrow(
     out,
     /function PresetPreviewPage\(\) \{[\s\S]*?\n\}\n\n/,
@@ -629,8 +658,12 @@ function pruneRouterText(source: string, preset: string): string {
     );
   }
   // Positive guard: the derived router keeps a working shell (theme init
-  // + ErrorBoundary + direct Outlet) and the single kept preset route.
-  for (const marker of ["<Outlet />", "ErrorBoundary", `"${preset}"`]) {
+  // + ErrorBoundary + direct Outlet) and every kept preset route.
+  for (const marker of [
+    "<Outlet />",
+    "ErrorBoundary",
+    ...keptPresets.map((id) => `"${id}"`),
+  ]) {
     if (!out.includes(marker)) {
       fail(
         `Prune failure: staging router lost its working shell (${marker}); the boilerplate source template may have drifted.`,
@@ -733,63 +766,82 @@ describe("theme token parity", () => {
 }
 
 /**
- * Side-effect import that registers the kept preset in a staging test.
+ * Side-effect imports that register the kept presets in a staging test.
  * Both staging test locations (`src/workbench/*` and `src/app/*`) address
  * features as `../features/...`, mirroring PRESET_ROUTER_WIRING.
  */
-function presetSideEffectImport(preset: string): string {
-  const wiring = PRESET_ROUTER_WIRING[preset];
-  if (!wiring) {
-    fail(`Prune failure: no router wiring for preset "${preset}".`);
-  }
-  return `import "${wiring.presetSideEffect}";`;
+function presetSideEffectImports(keptPresets: string[]): string {
+  return keptPresets
+    .map((id) => {
+      const wiring = PRESET_ROUTER_WIRING[id];
+      if (!wiring) {
+        fail(`Prune failure: no router wiring for preset "${id}".`);
+      }
+      return `import "${wiring.presetSideEffect}";`;
+    })
+    .join("\n");
 }
 
-/** Pruned catalog test: only the kept preset is registered and coherent. */
-function prunedPresetsTest(preset: string): string {
+/** Pruned catalog test: only the kept presets are registered and coherent. */
+function prunedPresetsTest(keptPresets: string[]): string {
+  const primary = keptPresets[0];
+  const keptList = keptPresets.map((id) => `"${id}"`).join(", ");
+  const resolveBlocks = keptPresets
+    .map(
+      (id) => `    const ${toCamel(id)} = globalPresets.get("${id}");
+    if (!${toCamel(id)}) {
+      throw new Error('Kept preset "${id}" is not registered');
+    }
+    expect(resolveFeaturesOrThrow(${toCamel(id)})).toContain("viewport");`,
+    )
+    .join("\n\n");
   return `import { describe, expect, it } from "bun:test";
-${presetSideEffectImport(preset)}
+${presetSideEffectImports(keptPresets)}
 import { resolveFeaturesOrThrow } from "./features";
 import { globalPresets } from "./layouts";
 
 /**
- * Preset catalog (pruned derived project): only the "${preset}" preset
- * ships. The boilerplate source asserts all seven presets; only staging
- * copies are rewritten here.
+ * Preset catalog (pruned derived project): only the kept presets
+ * (${keptList}) ship. The boilerplate source asserts all seven presets;
+ * only staging copies are rewritten here. Switching presets is a layout value
+ * edit in src/app/workbench.config.ts, not a catalog change.
  */
 describe("preset catalog (pruned)", () => {
-  it("registers the kept preset", () => {
-    expect(globalPresets.has("${preset}")).toBe(true);
+  it("registers every kept preset", () => {
+    for (const id of [${keptList}]) {
+      expect(globalPresets.has(id)).toBe(true);
+    }
   });
 
-  it("resolves the kept preset defaults without errors", () => {
-    const kept = globalPresets.get("${preset}");
-    if (!kept) {
-      throw new Error('Kept preset "${preset}" is not registered');
-    }
-    const features = resolveFeaturesOrThrow(kept);
-    expect(features).toContain("viewport");
+  it("resolves every kept preset defaults without errors", () => {
+${resolveBlocks}
+    expect(globalPresets.get("${primary}")).toBeDefined();
   });
 });
 `;
 }
 
-/** Pruned manifest test: asserts the kept preset+theme, never technical-ribbon. */
-function prunedWorkbenchConfigTest(preset: string, theme: string): string {
+/** Pruned manifest test: asserts the kept layout+theme. */
+function prunedWorkbenchConfigTest(
+  keptPresets: string[],
+  theme: string,
+): string {
+  const primary = keptPresets[0];
+  const keptList = keptPresets.map((id) => `"${id}"`).join(", ");
   return `import { describe, expect, it } from "bun:test";
-${presetSideEffectImport(preset)}
+${presetSideEffectImports(keptPresets)}
 import { resolveFeaturesOrThrow } from "../workbench/features";
 import { globalPresets } from "../workbench/layouts";
 import { workbenchConfig } from "./workbench.config";
 
 /**
- * Workbench manifest (pruned derived project): the manifest names the kept
- * preset "${preset}" and theme "${theme}". The boilerplate source pins
- * technical-ribbon; only staging copies are rewritten here.
+ * Workbench manifest (pruned derived project): the manifest layout is
+ * "${primary}" with theme "${theme}". Any kept preset ([${keptList}])
+ * is a valid layout value; only staging copies are rewritten here.
  */
 describe("workbench manifest (pruned)", () => {
   it("declares the kept layout", () => {
-    expect(workbenchConfig.layout).toBe("${preset}");
+    expect(workbenchConfig.layout).toBe("${primary}");
   });
 
   it("declares the kept theme", () => {
@@ -799,7 +851,7 @@ describe("workbench manifest (pruned)", () => {
   it("resolves the manifest layout to a registered preset", () => {
     const kept = globalPresets.get(workbenchConfig.layout);
     expect(kept).toBeDefined();
-    expect(kept?.id).toBe("${preset}");
+    expect([${keptList}]).toContain(kept?.id ?? "missing");
   });
 
   it("resolves the manifest features without errors", () => {
@@ -828,9 +880,14 @@ describe("workbench manifest (pruned)", () => {
  */
 function prunedAiContextTest(
   projectName: string,
-  preset: string,
+  keptPresets: string[],
   theme: string,
 ): string {
+  const primary = keptPresets[0];
+  const sortedList = [...keptPresets]
+    .sort()
+    .map((id) => `"${id}"`)
+    .join(", ");
   return `/**
  * AI context tests (pruned derived project): the snapshot is built from the
  * real derived state, generation is deterministic, and --check detects drift.
@@ -852,14 +909,16 @@ describe("ai:context snapshot", () => {
   it("describes the real derived state, not a manual list", async () => {
     const { snapshot, digest } = await buildAiContext(REPO_ROOT);
     expect(snapshot.packageName).toBe("${projectName}");
-    expect(snapshot.preset).toBe("${preset}");
+    expect(snapshot.preset).toBe("${primary}");
     expect(snapshot.theme).toBe("${theme}");
-    expect(snapshot.presetIds).toEqual(["${preset}"]);
+    expect(snapshot.presetIds).toEqual([${sortedList}]);
     expect(snapshot.themes).toEqual(["${theme}"]);
     expect(snapshot.resolvedFeatures).toContain("viewport");
-    // Registry content ships with preset files: only technical-ribbon carries
-    // demo widget/command/tool/status registrations, so other derived
-    // catalogs legitimately list none. Assert structure, not demo content.
+    // Registry content ships with preset files: the trimmed
+    // technical-ribbon example carries a minimal set of
+    // widget/command/tool/status registrations, so other derived
+    // catalogs legitimately list few or none. Assert structure,
+    // not demo content.
     for (const id of [
       ...snapshot.widgets,
       ...snapshot.commands,
@@ -974,11 +1033,13 @@ function pruneValidateArchitectureText(source: string, preset: string): string {
 function renderDerivedReadme(options: {
   appName: string;
   preset: string;
+  keptPresets: string[];
   theme: string;
   withFeatures: string[];
   withoutFeatures: string[];
   resolvedFeatures: string[];
 }): string {
+  const multi = options.keptPresets.length > 1;
   const lines = [
     `# ${options.appName}`,
     ``,
@@ -988,6 +1049,15 @@ function renderDerivedReadme(options: {
     ``,
     `- Preset: \`${options.preset}\``,
     `- Theme: \`${options.theme}\``,
+    ...(multi
+      ? [
+          `- Extra presets: ${options.keptPresets
+            .flatMap((id) => (id !== options.preset ? [`\`${id}\``] : []))
+            .join(
+              ", ",
+            )} (switch via the \`layout\` key in \`src/app/workbench.config.ts\`)`,
+        ]
+      : []),
     `- Features: ${options.resolvedFeatures.map((f) => `\`${f}\``).join(", ")}`,
     ...(options.withFeatures.length > 0
       ? [
@@ -1022,10 +1092,571 @@ function renderDerivedReadme(options: {
   return lines.join("\n");
 }
 
+/**
+ * Clean-by-default demo cleanup (STAGING ONLY, never the source).
+ *
+ * A derived technical-ribbon project ships ONE working end-to-end example
+ * per extension point instead of the factory demo catalog:
+ * - Viewport: empty (no DemoGeometry), ready for app content.
+ * - Ribbon: 1 tab (Home) with 1 group (Draw) and 3 tools
+ *   (select + line + circle, each wired to its command with shortcut).
+ * - Rail: the same 3 tools, in the same order.
+ * - Commands: tool.select (V), draw.line (L), draw.circle (C) selecting
+ *   their tool through the ToolRegistry, plus grid.toggle (G).
+ * - Widgets: 1 visible inspector widget (properties).
+ * - Status: 1 real toggle (grid, driving ViewportGrid visibility).
+ * Everything else (Annotate/View/Manage tabs, ~40 noop commands, extra
+ * demo widgets, ortho/osnap aids, DemoGeometry) is removed.
+ *
+ * Coherence is structural: every ribbon/rail tool id exists in the tool
+ * defs, every tool command is registered, and no unused imports survive
+ * (the derived project must pass strict tsc + lint + tests).
+ *
+ * Other presets (ide/studio/operator/monitoring/setup/minimal) carry no
+ * demo command catalog: verified by grep on the real source, ide/studio/
+ * operator render DemoWidgets widget components structurally (no demo
+ * command/tool registrations, no DemoGeometry), monitoring/setup ship
+ * local structural data (monitoringDemo.ts tile/alert types, setupDemo.ts
+ * wizard validation), and minimal is clean. They are kept as-is; only
+ * technical-ribbon is rewritten.
+ */
+const RIBBON_CLEANUP_TOOLS = ["select", "line", "circle"] as const;
+
+const RIBBON_CLEANUP_DELETED_PATHS = [
+  "src/features/technical-ribbon/DemoGeometry.tsx",
+  "src/features/technical-ribbon/technicalRibbonTools",
+  "src/features/technical-ribbon/technicalRibbonTools/annotateTools.ts",
+  "src/features/technical-ribbon/technicalRibbonTools/homeTools.ts",
+  "src/features/technical-ribbon/technicalRibbonTools/manageTools.ts",
+  "src/features/technical-ribbon/technicalRibbonTools/viewTools.ts",
+];
+
+function cleanupReportLines(keptPresets: string[]): string[] {
+  const lines: string[] = [];
+  if (keptPresets.includes("technical-ribbon")) {
+    lines.push(
+      "demo cleanup (technical-ribbon): viewport DemoGeometry removed (empty viewport); " +
+        "ribbon trimmed to Home/Draw with tools select, line, circle; " +
+        "commands trimmed to tool.select, draw.line, draw.circle, grid.toggle; " +
+        "widgets trimmed to properties (visible); status trimmed to grid; " +
+        `deleted: ${RIBBON_CLEANUP_DELETED_PATHS.join(", ")}`,
+    );
+  }
+  const others = keptPresets.filter((id) => id !== "technical-ribbon");
+  if (others.length > 0) {
+    lines.push(
+      `demo check (${others.join(", ")}): no demo command catalog found by grep ` +
+        `(DemoWidgets widget components render structurally; monitoring/setup ` +
+        `local Demo data is structural; minimal is clean) — kept as-is.`,
+    );
+  }
+  return lines;
+}
+
+function trimmedRibbonText(): string {
+  return `import type { RibbonTab } from "../../workbench/types";
+
+    /** Minimal end-to-end ribbon example: one tab (Home), one group (Draw). */
+    export const technicalRibbonTabs: RibbonTab[] = [
+      {
+        id: "home",
+        label: "Home",
+        groups: [
+          {
+            id: "draw",
+            label: "Draw",
+            tools: ["select", "line", "circle"],
+          },
+        ],
+      },
+    ];
+    `;
+}
+
+function trimmedRibbonToolsText(): string {
+  return `import { Circle, MousePointer2, Slash } from "lucide-react";
+    import { globalTools, type ToolRegistry } from "../../workbench/tools";
+    import type { ToolDefinition } from "../../workbench/types";
+
+    /** Minimal end-to-end tool example: select plus two draw tools. */
+    export const TECHNICAL_RIBBON_TOOLS: ToolDefinition[] = [
+      {
+        id: "select",
+        label: "Select",
+        icon: MousePointer2,
+        tooltip: "Select objects",
+        command: "tool.select",
+        shortcut: "V",
+      },
+      {
+        id: "line",
+        label: "Line",
+        icon: Slash,
+        tooltip: "Draw a line segment",
+        command: "draw.line",
+        group: "draw",
+        shortcut: "L",
+      },
+      {
+        id: "circle",
+        label: "Circle",
+        icon: Circle,
+        tooltip: "Draw a circle",
+        command: "draw.circle",
+        group: "draw",
+        shortcut: "C",
+      },
+    ];
+
+    export function registerTechnicalRibbonTools(
+      registry: ToolRegistry = globalTools,
+    ): void {
+      for (const tool of TECHNICAL_RIBBON_TOOLS) {
+        registry.registerTool(tool);
+      }
+    }
+
+    /** Rail order for the technical-ribbon preset. */
+    export const technicalRibbonRailTools: string[] = ["select", "line", "circle"];
+    `;
+}
+
+function trimmedRibbonCommandsText(): string {
+  return `import { type CommandRegistry, globalCommands } from "../../workbench/commands";
+    import { globalStatus, type StatusRegistry } from "../../workbench/status";
+    import { globalTools, type ToolRegistry } from "../../workbench/tools";
+
+    /**
+     * Selection state owned by the technical-ribbon preset (NOT the core): which
+     * tool the last executed tool-command selected. Keyed by registry so tests
+     * on fresh registries never pollute (or observe) the shared globals.
+     */
+    const selectedToolByRegistry = new WeakMap<ToolRegistry, string | null>();
+    const listenersByRegistry = new WeakMap<ToolRegistry, Set<() => void>>();
+
+    /** Id of the tool last selected through tools, or null when none was. */
+    export function getSelectedTechnicalRibbonToolId(
+      tools: ToolRegistry = globalTools,
+    ): string | null {
+      return selectedToolByRegistry.get(tools) ?? null;
+    }
+
+    /**
+     * Subscribe to selection changes for tools. Returns an unsubscribe
+     * function. No notification fires when the selection is set to its current
+     * value, so handlers stay idempotent and re-entrant.
+     */
+    export function subscribeSelectedTechnicalRibbonToolId(
+      tools: ToolRegistry,
+      listener: () => void,
+    ): () => void {
+      let listeners = listenersByRegistry.get(tools);
+      if (!listeners) {
+        listeners = new Set();
+        listenersByRegistry.set(tools, listeners);
+      }
+      listeners.add(listener);
+      return () => {
+        listenersByRegistry.get(tools)?.delete(listener);
+      };
+    }
+
+    function setSelectedTechnicalRibbonToolId(
+      tools: ToolRegistry,
+      toolId: string,
+    ): void {
+      if (selectedToolByRegistry.get(tools) === toolId) {
+        return;
+      }
+      selectedToolByRegistry.set(tools, toolId);
+      listenersByRegistry.get(tools)?.forEach((notify) => {
+        notify();
+      });
+    }
+
+    /**
+     * Anti-loop guard for the ToolProvider bridge: sync only when there is a
+     * selection and it differs from the core active tool. Pure so it stays
+     * unit-testable without a DOM.
+     */
+    export function shouldSyncTechnicalRibbonTool(
+      selectedToolId: string | null,
+      activeToolId: string | null,
+    ): boolean {
+      return selectedToolId !== null && selectedToolId !== activeToolId;
+    }
+
+    /**
+     * External-store sync for the preset selection, ready for
+     * useSyncExternalStore. The bridge component subscribes through this and
+     * calls the core selectTool only when shouldSyncTechnicalRibbonTool
+     * passes, so the mount is a no-op when the selection coincides or is null.
+     */
+    export function getTechnicalRibbonToolSync(tools: ToolRegistry = globalTools): {
+      subscribe: (listener: () => void) => () => void;
+      getSnapshot: () => string | null;
+    } {
+      return {
+        subscribe: (listener: () => void) =>
+          subscribeSelectedTechnicalRibbonToolId(tools, listener),
+        getSnapshot: () => getSelectedTechnicalRibbonToolId(tools),
+      };
+    }
+
+    /**
+     * Resolve a command to its tool through the ToolRegistry and record the
+     * selection. Resolution is lazy (at execute time) because preset wiring
+     * registers commands before tools.
+     */
+    function selectToolForCommand(commandId: string, tools: ToolRegistry): void {
+      const tool = tools.list().find((entry) => entry.command === commandId);
+      if (!tool) {
+        return;
+      }
+      setSelectedTechnicalRibbonToolId(tools, tool.id);
+    }
+
+    /**
+     * Minimal end-to-end command example: one command per tool (selecting it
+     * through the ToolRegistry) plus the grid drawing-aid toggle.
+     */
+    export function registerTechnicalRibbonCommands(
+      commands: CommandRegistry = globalCommands,
+      status: StatusRegistry = globalStatus,
+      tools: ToolRegistry = globalTools,
+    ): void {
+      const simple: Array<[string, string, string?]> = [
+        ["tool.select", "Select", "V"],
+        ["draw.line", "Line", "L"],
+        ["draw.circle", "Circle", "C"],
+      ];
+      for (const [id, label, shortcut] of simple) {
+        // Idempotent: registerCommand throws on duplicates, and preset wiring
+        // runs at import time (hot reloads re-import). First registration wins.
+        if (commands.has(id)) {
+          continue;
+        }
+        commands.registerCommand(id, () => selectToolForCommand(id, tools), {
+          label,
+          shortcut,
+        });
+      }
+      if (!commands.has("grid.toggle")) {
+        commands.registerCommand("grid.toggle", () => status.toggle("grid"), {
+          label: "Toggle Grid",
+          shortcut: "G",
+        });
+      }
+    }
+    `;
+}
+
+function trimmedRibbonWidgetsText(): string {
+  return `import { SlidersHorizontal } from "lucide-react";
+    import { PropertiesWidget } from "../../components/workbench/widgets/PropertiesWidget";
+    import { globalWidgets, type WidgetRegistry } from "../../workbench/widgets";
+
+    /** Minimal end-to-end widget example: one visible inspector widget. */
+    export function registerTechnicalRibbonWidgets(
+      registry: WidgetRegistry = globalWidgets,
+    ): void {
+      registry.registerWidget({
+        id: "properties",
+        title: "Properties",
+        icon: SlidersHorizontal,
+        component: PropertiesWidget,
+        defaultPosition: "right",
+        defaultSize: { width: 220, height: 600 },
+        minSize: { width: 180, height: 300 },
+        closable: false,
+        resizable: true,
+        visible: true,
+      });
+    }
+    `;
+}
+
+function trimmedRibbonStatusText(): string {
+  return `import { globalStatus, type StatusRegistry } from "../../workbench/status";
+
+    /** Minimal end-to-end status example: GRID drives ViewportGrid visibility. */
+    export function registerTechnicalRibbonStatus(
+      registry: StatusRegistry = globalStatus,
+    ): void {
+      registry.registerStatusItem({
+        id: "grid",
+        label: "GRID",
+        kind: "toggle",
+        active: true,
+        shortcut: "G",
+      });
+    }
+    `;
+}
+
+/** Trimmed commands test: mirrors the minimal example, never the demo catalog. */
+function trimmedRibbonCommandsTestText(): string {
+  return `import { describe, expect, it } from "bun:test";
+    import { createCommandRegistry } from "../../workbench/commands";
+    import { createStatusRegistry } from "../../workbench/status";
+    import { createToolRegistry } from "../../workbench/tools";
+    import {
+      getSelectedTechnicalRibbonToolId,
+      getTechnicalRibbonToolSync,
+      registerTechnicalRibbonCommands,
+      shouldSyncTechnicalRibbonTool,
+      subscribeSelectedTechnicalRibbonToolId,
+    } from "./technicalRibbonCommands";
+    import { registerTechnicalRibbonStatus } from "./technicalRibbonStatus";
+    import { registerTechnicalRibbonTools } from "./technicalRibbonTools";
+
+    function setupFresh() {
+      const commands = createCommandRegistry();
+      const status = createStatusRegistry();
+      const tools = createToolRegistry();
+      registerTechnicalRibbonTools(tools);
+      registerTechnicalRibbonStatus(status);
+      registerTechnicalRibbonCommands(commands, status, tools);
+      return { commands, status, tools };
+    }
+
+    describe("technical ribbon commands (minimal example)", () => {
+      it("starts with no tool selected on fresh registries", () => {
+        const { tools } = setupFresh();
+        expect(getSelectedTechnicalRibbonToolId(tools)).toBeNull();
+      });
+
+      it("selects tools when their commands execute", () => {
+        const { commands, tools } = setupFresh();
+        const cases: Array<[string, string]> = [
+          ["tool.select", "select"],
+          ["draw.line", "line"],
+          ["draw.circle", "circle"],
+        ];
+        for (const [commandId, toolId] of cases) {
+          expect(commands.execute(commandId)).toBe(true);
+          expect(getSelectedTechnicalRibbonToolId(tools)).toBe(toolId);
+        }
+      });
+
+      it("notifies subscribers on selection changes", () => {
+        const { commands, tools } = setupFresh();
+        const seen: Array<string | null> = [];
+        const unsubscribe = subscribeSelectedTechnicalRibbonToolId(tools, () => {
+          seen.push(getSelectedTechnicalRibbonToolId(tools));
+        });
+        commands.execute("draw.line");
+        commands.execute("draw.line");
+        unsubscribe();
+        commands.execute("draw.circle");
+        // Second draw.line is idempotent: same value, no second notification.
+        expect(seen).toEqual(["line"]);
+      });
+
+      it("toggles the grid aid through the status registry", () => {
+        const { commands, status } = setupFresh();
+        expect(status.isActive("grid")).toBe(true);
+        expect(commands.execute("grid.toggle")).toBe(true);
+        expect(status.isActive("grid")).toBe(false);
+        expect(commands.execute("grid.toggle")).toBe(true);
+        expect(status.isActive("grid")).toBe(true);
+      });
+
+      it("keeps shortcut metadata on commands and status items", () => {
+        const { commands, status } = setupFresh();
+        const expected: Array<[string, string]> = [
+          ["tool.select", "V"],
+          ["draw.line", "L"],
+          ["draw.circle", "C"],
+          ["grid.toggle", "G"],
+        ];
+        for (const [commandId, shortcut] of expected) {
+          expect(commands.get(commandId)?.shortcut).toBe(shortcut);
+        }
+        expect(status.get("grid")?.shortcut).toBe("G");
+      });
+
+      it("registers idempotently without duplicate-id errors", () => {
+        const { commands, status, tools } = setupFresh();
+        expect(() =>
+          registerTechnicalRibbonCommands(commands, status, tools),
+        ).not.toThrow();
+        expect(commands.execute("draw.line")).toBe(true);
+        expect(getSelectedTechnicalRibbonToolId(tools)).toBe("line");
+      });
+
+      it("exposes an external-store sync over the selection", () => {
+        const { commands, tools } = setupFresh();
+        const sync = getTechnicalRibbonToolSync(tools);
+        expect(sync.getSnapshot()).toBeNull();
+        const seen: Array<string | null> = [];
+        const unsubscribe = sync.subscribe(() => {
+          seen.push(sync.getSnapshot());
+        });
+        commands.execute("draw.line");
+        expect(sync.getSnapshot()).toBe("line");
+        unsubscribe();
+        commands.execute("draw.circle");
+        expect(seen).toEqual(["line"]);
+      });
+
+      it("guards the ToolProvider bridge against loops", () => {
+        // No selection: mount stays a no-op.
+        expect(shouldSyncTechnicalRibbonTool(null, "select")).toBe(false);
+        expect(shouldSyncTechnicalRibbonTool(null, null)).toBe(false);
+        // Selection coincides with the active tool: no selectTool call.
+        expect(shouldSyncTechnicalRibbonTool("line", "line")).toBe(false);
+        // Selection differs: the bridge syncs once.
+        expect(shouldSyncTechnicalRibbonTool("line", "select")).toBe(true);
+        expect(shouldSyncTechnicalRibbonTool("line", null)).toBe(true);
+      });
+    });
+    `;
+}
+
+/**
+ * Apply the technical-ribbon demo cleanup to the STAGING copy. Every
+ * rewrite is exact-match guarded: source drift fails loudly instead of
+ * shipping a half-trimmed preset that cannot typecheck.
+ */
+function applyTechnicalRibbonCleanup(staging: string): void {
+  const ribbonDir = join(staging, "src", "features", "technical-ribbon");
+  for (const file of RIBBON_CLEANUP_DELETED_PATHS) {
+    removeDir(join(staging, file));
+  }
+  if (existsSync(join(ribbonDir, "DemoGeometry.tsx"))) {
+    fail("Cleanup failure: DemoGeometry.tsx survived deletion.");
+  }
+  writeFileSync(
+    join(ribbonDir, "technicalRibbonRibbon.ts"),
+    trimmedRibbonText(),
+  );
+  writeFileSync(
+    join(ribbonDir, "technicalRibbonTools.ts"),
+    trimmedRibbonToolsText(),
+  );
+  writeFileSync(
+    join(ribbonDir, "technicalRibbonCommands.ts"),
+    trimmedRibbonCommandsText(),
+  );
+  writeFileSync(
+    join(ribbonDir, "technicalRibbonWidgets.ts"),
+    trimmedRibbonWidgetsText(),
+  );
+  writeFileSync(
+    join(ribbonDir, "technicalRibbonStatus.ts"),
+    trimmedRibbonStatusText(),
+  );
+  writeFileSync(
+    join(ribbonDir, "technicalRibbonCommands.test.ts"),
+    trimmedRibbonCommandsTestText(),
+  );
+  const layoutPath = join(ribbonDir, "technicalRibbonLayout.tsx");
+  let layout = readFileSync(layoutPath, "utf8");
+  layout = replaceOrThrow(
+    layout,
+    `import { DemoGeometry } from "./DemoGeometry";\n`,
+    "",
+    "cleanup layout DemoGeometry import",
+  );
+  layout = replaceOrThrow(
+    layout,
+    [
+      "        <Viewport",
+      "          onCoordsChange={setCoords}",
+      '          scaleLabel="1:1"',
+      "          contextMenu={viewportContextMenu}",
+      "        >",
+      "          <DemoGeometry />",
+      "        </Viewport>",
+    ].join("\n"),
+    [
+      "        <Viewport",
+      "          onCoordsChange={setCoords}",
+      '          scaleLabel="1:1"',
+      "          contextMenu={viewportContextMenu}",
+      "        />",
+    ].join("\n"),
+    "cleanup layout DemoGeometry usage",
+  );
+  // The trimmed command set keeps no view.* commands: the viewport menu
+  // reuses the surviving grid toggle only.
+  layout = replaceOrThrow(
+    layout,
+    [
+      "const viewportContextMenu: MenuItem[] = [",
+      '  { command: "view.zoom-in" },',
+      '  { command: "view.zoom-out" },',
+      '  { command: "view.reset" },',
+      "  { separator: true },",
+      '  { command: "grid.toggle" },',
+      "];",
+    ].join("\n"),
+    [
+      "// Viewport right-click menu: every entry reuses a registered command",
+      "// id (zero duplicated actions). The trimmed example keeps only the",
+      "// grid toggle; register more commands to grow this menu.",
+      'const viewportContextMenu: MenuItem[] = [{ command: "grid.toggle" }];',
+    ].join("\n"),
+    "cleanup layout context menu",
+  );
+  writeFileSync(layoutPath, layout);
+  // Containment guards: no demo identifier may survive the cleanup.
+  const ribbonFiles = readdirSync(ribbonDir).sort();
+  if (ribbonFiles.includes("technicalRibbonTools")) {
+    fail("Cleanup failure: technicalRibbonTools/ subdir survived deletion.");
+  }
+  for (const entry of ribbonFiles) {
+    if (!entry.endsWith(".ts") && !entry.endsWith(".tsx")) {
+      continue;
+    }
+    const content = readFileSync(join(ribbonDir, entry), "utf8");
+    for (const leftover of [
+      "DemoGeometry",
+      "DemoWidgets",
+      "annotate.",
+      "modify.",
+      "layer.",
+      "view.",
+      "app.",
+      "osnap",
+      "ortho",
+    ]) {
+      if (content.includes(leftover)) {
+        fail(
+          `Cleanup failure: ${entry} still references demo content (${leftover}).`,
+        );
+      }
+    }
+  }
+  // Coherence guards: every ribbon/rail tool resolves to a def whose
+  // command is registered by the trimmed command module.
+  const defs = readFileSync(join(ribbonDir, "technicalRibbonTools.ts"), "utf8");
+  const commands = readFileSync(
+    join(ribbonDir, "technicalRibbonCommands.ts"),
+    "utf8",
+  );
+  for (const tool of RIBBON_CLEANUP_TOOLS) {
+    if (!defs.includes(`id: "${tool}"`) || !defs.includes("command:")) {
+      fail(`Cleanup failure: tool def "${tool}" is missing a command.`);
+    }
+  }
+  for (const command of [
+    '"tool.select"',
+    '"draw.line"',
+    '"draw.circle"',
+    '"grid.toggle"',
+  ]) {
+    if (!commands.includes(command)) {
+      fail(`Cleanup failure: command ${command} is not registered.`);
+    }
+  }
+}
+
 function pruneStagingToMinimal(
   staging: string,
   projectName: string,
-  preset: string,
+  keptPresets: string[],
   theme: string,
   options: {
     appName: string;
@@ -1034,29 +1665,38 @@ function pruneStagingToMinimal(
     resolvedFeatures: string[];
   },
 ): void {
+  const primary = keptPresets[0];
   const featuresDir = join(staging, "src", "features");
   for (const dir of PRESET_FEATURE_DIRS) {
-    if (dir !== preset) {
+    if (!keptPresets.includes(dir)) {
       removeDir(join(featuresDir, dir));
     }
   }
   removeDir(join(featuresDir, "showcase"));
-  if (!existsSync(join(featuresDir, preset))) {
-    fail(`Prune failure: kept preset dir "src/features/${preset}" is missing.`);
+  for (const kept of keptPresets) {
+    if (!existsSync(join(featuresDir, kept))) {
+      fail(`Prune failure: kept preset dir "src/features/${kept}" is missing.`);
+    }
   }
-  // Guard: the kept preset must not import pruned showcase code. Per the
+  // Guard: no kept preset may import pruned showcase code. Per the
   // file strategy above this never triggers on the current source; it
   // fails loudly instead of shipping a derived project that cannot typecheck.
-  for (const entry of readdirSync(join(featuresDir, preset)).sort()) {
-    if (!entry.endsWith(".ts") && !entry.endsWith(".tsx")) {
-      continue;
+  for (const kept of keptPresets) {
+    for (const entry of readdirSync(join(featuresDir, kept)).sort()) {
+      if (!entry.endsWith(".ts") && !entry.endsWith(".tsx")) {
+        continue;
+      }
+      const content = readFileSync(join(featuresDir, kept, entry), "utf8");
+      if (content.includes("features/showcase")) {
+        fail(
+          `Prune failure: kept preset "${kept}" imports showcase code (${entry}); add a staging rewrite for it.`,
+        );
+      }
     }
-    const content = readFileSync(join(featuresDir, preset, entry), "utf8");
-    if (content.includes("features/showcase")) {
-      fail(
-        `Prune failure: kept preset "${preset}" imports showcase code (${entry}); add a staging rewrite for it.`,
-      );
-    }
+  }
+  // Clean-by-default demo cleanup (staging only, never the source).
+  if (keptPresets.includes("technical-ribbon")) {
+    applyTechnicalRibbonCleanup(staging);
   }
   const themesDir = join(staging, "src", "styles", "themes");
   for (const entry of readdirSync(themesDir).sort()) {
@@ -1072,7 +1712,7 @@ function pruneStagingToMinimal(
   const routerPath = join(staging, "src", "app", "router.tsx");
   writeFileSync(
     routerPath,
-    pruneRouterText(readFileSync(routerPath, "utf8"), preset),
+    pruneRouterText(readFileSync(routerPath, "utf8"), keptPresets),
   );
   const globalCssPath = join(staging, "src", "styles", "global.css");
   writeFileSync(
@@ -1085,27 +1725,28 @@ function pruneStagingToMinimal(
   );
   writeFileSync(
     join(staging, "src", "workbench", "presets.test.ts"),
-    prunedPresetsTest(preset),
+    prunedPresetsTest(keptPresets),
   );
   writeFileSync(
     join(staging, "src", "app", "workbench.config.test.ts"),
-    prunedWorkbenchConfigTest(preset, theme),
+    prunedWorkbenchConfigTest(keptPresets, theme),
   );
   writeFileSync(
     join(staging, "scripts", "ai-context.test.ts"),
-    prunedAiContextTest(projectName, preset, theme),
+    prunedAiContextTest(projectName, keptPresets, theme),
   );
   const archPath = join(staging, "scripts", "validate-architecture.ts");
   writeFileSync(
     archPath,
-    pruneValidateArchitectureText(readFileSync(archPath, "utf8"), preset),
+    pruneValidateArchitectureText(readFileSync(archPath, "utf8"), primary),
   );
   // Replace the factory README with the derived app README.
   writeFileSync(
     join(staging, "README.md"),
     renderDerivedReadme({
       appName: options.appName,
-      preset,
+      preset: primary,
+      keptPresets,
       theme,
       withFeatures: options.withFeatures,
       withoutFeatures: options.withoutFeatures,
@@ -1124,6 +1765,21 @@ function parseListFlag(
     if (!known.includes(value)) {
       fail(
         `Unknown feature id in "--${flag}": "${value}". Known features: ${known.join(", ")}.`,
+      );
+    }
+    if (!out.includes(value)) {
+      out.push(value);
+    }
+  }
+  return out;
+}
+
+function parsePresetListFlag(values: string[], known: string[]): string[] {
+  const out: string[] = [];
+  for (const value of values) {
+    if (!known.includes(value)) {
+      fail(
+        `Unknown preset in "--with-presets": "${value}". Known presets: ${known.join(", ")}.`,
       );
     }
     if (!out.includes(value)) {
@@ -1163,6 +1819,14 @@ async function main(): Promise<void> {
       `Unknown preset "${preset}". Known presets: ${model.presetIds.join(", ")}.`,
     );
   }
+  // Extra presets to keep (repeatable/comma, validated against real ids).
+  // The prune keeps the manifest preset plus these; without the flag the
+  // derived project ships a single preset, as before.
+  const withPresets = parsePresetListFlag(
+    list(parsed, "with-presets"),
+    model.presetIds,
+  );
+  const keptPresets = [preset, ...withPresets.filter((id) => id !== preset)];
   const theme = str(parsed, "theme") ?? "ocstudio";
   if (!model.themes.includes(theme)) {
     fail(`Unknown theme "${theme}". Known themes: ${model.themes.join(", ")}.`);
@@ -1206,7 +1870,7 @@ async function main(): Promise<void> {
     );
     console.log(`  resolved features: ${resolved.join(", ")}`);
     console.log(`  source-only excluded: ${[...SOURCE_ONLY].join(", ")}`);
-    console.log(prunePlanReport(preset, theme, model.themes));
+    console.log(prunePlanReport(keptPresets, theme, model.themes));
     return;
   }
 
@@ -1269,6 +1933,7 @@ async function main(): Promise<void> {
       renderWorkbenchConfig({
         appName,
         layout: preset,
+        keptPresets,
         theme,
         withFeatures,
         withoutFeatures,
@@ -1277,7 +1942,7 @@ async function main(): Promise<void> {
 
     // Minimal derived project: prune unchosen presets/showcase/themes
     // and rewrite catalog enumerations (staging only, never the source).
-    pruneStagingToMinimal(staging, projectName, preset, theme, {
+    pruneStagingToMinimal(staging, projectName, keptPresets, theme, {
       appName,
       withFeatures,
       withoutFeatures,
@@ -1291,6 +1956,7 @@ async function main(): Promise<void> {
       sourceVersion: model.sourceVersion,
       sourceCommit: model.sourceCommit,
       preset,
+      presets: keptPresets,
       theme,
     };
     writeFileSync(
@@ -1330,8 +1996,11 @@ async function main(): Promise<void> {
 
   console.log(`Project "${projectName}" materialized at ${dest}`);
   console.log(
-    `  preset: ${preset}  theme: ${theme}  features: ${resolved.join(", ")}`,
+    `  presets: ${keptPresets.join(", ")}  theme: ${theme}  features: ${resolved.join(", ")}`,
   );
+  for (const line of cleanupReportLines(keptPresets)) {
+    console.log(`  ${line}`);
+  }
   console.log(`AI context regenerated in the derived project.`);
 }
 
