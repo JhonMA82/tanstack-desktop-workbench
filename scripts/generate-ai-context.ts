@@ -93,6 +93,7 @@ interface AiSnapshot {
   packageName: string;
   packageVersion: string;
   projectKind: string;
+  stack: string[];
   appName: string;
   preset: string;
   theme: string;
@@ -620,10 +621,37 @@ async function discoverPresetPatterns(
   return pattern;
 }
 
+/**
+ * Project stack straight from package.json: package manager first, then
+ * sorted runtime + dev dependencies as name@version. No hardcoded frameworks.
+ */
+function buildStack(pkg: {
+  packageManager?: string;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+}): string[] {
+  const names = [
+    ...Object.keys(pkg.dependencies ?? {}),
+    ...Object.keys(pkg.devDependencies ?? {}),
+  ].sort();
+  const stack = names.map((name) => {
+    const version =
+      pkg.dependencies?.[name] ?? pkg.devDependencies?.[name] ?? "?";
+    return `${name}@${version}`;
+  });
+  if (pkg.packageManager) {
+    stack.unshift(pkg.packageManager);
+  }
+  return stack;
+}
+
 async function loadSnapshot(repoRoot: string): Promise<AiSnapshot> {
   const pkg = readJson<{
     name?: string;
     version?: string;
+    packageManager?: string;
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
     scripts?: Record<string, string>;
   }>(join(repoRoot, "package.json"));
   const { createPresetRegistry } = await import("../src/workbench/layouts");
@@ -728,6 +756,7 @@ async function loadSnapshot(repoRoot: string): Promise<AiSnapshot> {
     packageName: pkg.name ?? "unknown",
     packageVersion: pkg.version ?? "0.0.0",
     projectKind,
+    stack: buildStack(pkg),
     appName: workbenchConfig.appName,
     preset: workbenchConfig.layout,
     theme: workbenchConfig.theme,
@@ -896,6 +925,7 @@ function renderContext(snapshot: AiSnapshot, digest: string): string {
     `# Generated context — ${snapshot.appName}`,
     "",
     `- package: ${snapshot.packageName}@${snapshot.packageVersion} (${snapshot.projectKind})`,
+    `- stack: ${snapshot.stack.join(", ") || "unknown"}`,
     `- preset: ${snapshot.preset} (layout ${snapshot.preset})`,
     `- theme: ${snapshot.theme} (files: ${snapshot.themeFiles.join(", ") || "none"})`,
     `- with: [${snapshot.withFeatures.join(", ")}]`,
