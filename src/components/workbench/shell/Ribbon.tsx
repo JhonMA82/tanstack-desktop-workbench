@@ -51,7 +51,7 @@ export function Ribbon({ tabs }: { tabs: RibbonTab[] }) {
         </div>
       </div>
       {activeTab ? (
-        <div className="flex h-[84px] items-stretch gap-1 overflow-x-auto bg-[var(--wb-surface)] px-2 py-1.5">
+        <div className="flex h-[92px] items-stretch gap-1 overflow-x-auto border-b border-[var(--wb-border)] bg-[var(--wb-surface)] px-2 py-1.5">
           {activeTab.groups.map((group, index) => (
             <div key={group.id} className="flex shrink-0 items-stretch">
               {index > 0 ? <ToolbarSeparator /> : null}

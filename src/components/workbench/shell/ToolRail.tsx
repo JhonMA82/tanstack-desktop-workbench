@@ -8,7 +8,7 @@ export function ToolRail({ tools }: { tools: string[] }) {
   return (
     <nav
       aria-label="Tool rail"
-      className="flex w-[60px] shrink-0 flex-col items-center gap-1 overflow-y-auto bg-[var(--wb-surface-raised)] py-2"
+      className="flex w-[60px] shrink-0 flex-col items-center gap-1 overflow-y-auto border-r border-[var(--wb-border)] bg-[var(--wb-surface-raised)] py-2"
     >
       {tools.map((toolId) => {
         const tool = getTool(toolId);
