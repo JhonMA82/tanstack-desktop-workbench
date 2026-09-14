@@ -961,8 +961,13 @@ function renderContext(snapshot: AiSnapshot, digest: string): string {
     "- Protected core: `src/components/workbench/**`, `src/workbench/**` (extend before modifying).",
     "- Scaffold first: bun run generate:feature|generate:widget|generate:command|generate:tool.",
     "- Validate: bun run lint, bun x tsc --noEmit, bun test, bun run ai:context:check.",
-    "",
   );
+  if (snapshot.projectKind === "derived application") {
+    lines.push(
+      "- Add a boilerplate preset later: `bun run generate:add-preset -- --from <boilerplate-dir> --preset <id>` (copies src/features/<id> with full wiring; check the boilerplate checkout for available ids).",
+    );
+  }
+  lines.push("");
   return lines.join("\n");
 }
 

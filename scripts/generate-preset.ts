@@ -129,6 +129,9 @@ function main(): void {
   console.log(
     `  2. Add "${id}" to presetComponents in src/app/router.tsx for preview.`,
   );
+  console.log(
+    `  3. In a derived project, prefer \`bun run generate:add-preset -- --from <boilerplate-dir> --preset <id>\` to copy an existing boilerplate preset with full wiring instead of this empty skeleton.`,
+  );
   refreshAiContextIfAvailable(repoRoot);
 }
 

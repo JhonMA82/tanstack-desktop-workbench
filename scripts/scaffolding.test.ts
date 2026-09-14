@@ -175,6 +175,7 @@ describe("extension generators --help", () => {
     ["generate-tool.ts", "generate:tool"],
     ["generate-status-item.ts", "generate:status-item"],
     ["generate-preset.ts", "generate:preset"],
+    ["generate-add-preset.ts", "generate:add-preset"],
   ];
   for (const [script, name] of cases) {
     it(`${name} prints usage`, () => {
@@ -276,6 +277,7 @@ describe("generate:project", () => {
     expect(pkg.scripts["generate:project"]).toBeUndefined();
     expect(pkg.scripts["self-test:scaffolding"]).toBeUndefined();
     expect(pkg.scripts["generate:feature"]).toBeDefined();
+    expect(pkg.scripts["generate:add-preset"]).toBeDefined();
     const config = readFileSync(
       join(dest, "src", "app", "workbench.config.ts"),
       "utf8",
@@ -408,6 +410,101 @@ describe("generate:project", () => {
     expect(out).toContain("materialized");
     const pkg = JSON.parse(readFileSync(join(dest, "package.json"), "utf8"));
     expect(pkg.name).toBe("regen2");
+  });
+});
+
+describe("generate:add-preset", () => {
+  it("fails loudly on unknown presets", () => {
+    const parent = makeTemp("wb-add-");
+    const dest = join(parent, "probe-add");
+    runScript(
+      "generate-project.ts",
+      `-- probe-add --preset minimal --dest ${dest} --app-name "Probe Add"`,
+    );
+    expect(() =>
+      execSync(
+        `bun ${join(dest, "scripts", "generate-add-preset.ts")} -- --from ${REPO_ROOT} --preset nope`,
+        { cwd: dest, encoding: "utf8" },
+      ),
+    ).toThrow("Unknown preset");
+  });
+
+  it("refuses existing preset dirs without --force", () => {
+    const parent = makeTemp("wb-add-");
+    const dest = join(parent, "probe-add");
+    runScript(
+      "generate-project.ts",
+      `-- probe-add --preset minimal --dest ${dest} --app-name "Probe Add"`,
+    );
+    expect(() =>
+      execSync(
+        `bun ${join(dest, "scripts", "generate-add-preset.ts")} -- --from ${REPO_ROOT} --preset minimal`,
+        { cwd: dest, encoding: "utf8" },
+      ),
+    ).toThrow("already exists");
+  });
+
+  it("copies, wires, and widens the union in temp dirs", () => {
+    const parent = makeTemp("wb-add-");
+    const dest = join(parent, "probe-add");
+    runScript(
+      "generate-project.ts",
+      `-- probe-add --preset minimal --dest ${dest} --app-name "Probe Add"`,
+    );
+    const envBefore = process.env.WB_SKIP_AI_CONTEXT_REFRESH;
+    process.env.WB_SKIP_AI_CONTEXT_REFRESH = "1";
+    try {
+      const out = execSync(
+        `bun ${join(dest, "scripts", "generate-add-preset.ts")} -- --from ${REPO_ROOT} --preset ide --dry-run`,
+        { cwd: dest, encoding: "utf8" },
+      );
+      expect(out).toContain("Dry run");
+      expect(existsSync(join(dest, "src", "features", "ide"))).toBe(false);
+      execSync(
+        `bun ${join(dest, "scripts", "generate-add-preset.ts")} -- --from ${REPO_ROOT} --preset ide`,
+        { cwd: dest, encoding: "utf8" },
+      );
+    } finally {
+      if (envBefore === undefined) {
+        delete process.env.WB_SKIP_AI_CONTEXT_REFRESH;
+      } else {
+        process.env.WB_SKIP_AI_CONTEXT_REFRESH = envBefore;
+      }
+    }
+    expect(existsSync(join(dest, "src", "features", "ide"))).toBe(true);
+    expect(
+      existsSync(join(dest, "src", "features", "ide", "idePreset.ts")),
+    ).toBe(true);
+    const router = readFileSync(join(dest, "src", "app", "router.tsx"), "utf8");
+    expect(router).toContain(`"ide": IdeWorkbench`);
+    expect(router).toContain(`"minimal": MinimalWorkbench`);
+    expect(router).toContain("../features/ide/idePreset");
+    const config = readFileSync(
+      join(dest, "src", "app", "workbench.config.ts"),
+      "utf8",
+    );
+    expect(config).toContain(`"minimal" | "ide"`);
+    const presetsTest = readFileSync(
+      join(dest, "src", "workbench", "presets.test.ts"),
+      "utf8",
+    );
+    expect(presetsTest).toContain(`"ide"`);
+    expect(presetsTest).toContain("../features/ide/idePreset");
+    const manifestTest = readFileSync(
+      join(dest, "src", "app", "workbench.config.test.ts"),
+      "utf8",
+    );
+    expect(manifestTest).toContain(`"ide"`);
+    const aiTest = readFileSync(
+      join(dest, "scripts", "ai-context.test.ts"),
+      "utf8",
+    );
+    expect(aiTest).toContain(`"ide"`);
+    const marker = JSON.parse(
+      readFileSync(join(dest, ".boilerplate.json"), "utf8"),
+    );
+    expect(marker.presets).toContain("minimal");
+    expect(marker.presets).toContain("ide");
   });
 });
 

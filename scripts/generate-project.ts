@@ -30,6 +30,12 @@ import {
 } from "./_lib/cli";
 import { ensureDir, isNonEmptyDir, readJson, removeDir } from "./_lib/files";
 import { toCamel, toKebab, toTitle } from "./_lib/naming";
+import {
+  PRESET_FEATURE_DIRS,
+  PRESET_ROUTER_WIRING,
+  pruneLoadBearing,
+  VIEWPORT_FREE_PRESET_DIRS,
+} from "./_lib/preset-wiring";
 import { escapeTsString, renderTemplate } from "./_lib/templates";
 
 const SCRIPT = "generate:project";
@@ -373,81 +379,10 @@ function renderWorkbenchConfig(options: {
  *   kept preset; a guard below fails loudly if a kept preset ever
  *   references showcase again.
  * - Router wiring per preset (component + side-effect preset
- *   registration) is mapped explicitly in PRESET_ROUTER_WIRING; the
+ *   registration) is mapped explicitly in PRESET_ROUTER_WIRING (see
+ *   scripts/_lib/preset-wiring.ts, the single source of truth); the
  *   staging router is rewritten to the single kept entry.
  */
-const PRESET_FEATURE_DIRS = [
-  "technical-ribbon",
-  "ide",
-  "studio",
-  "operator",
-  "minimal",
-  "monitoring",
-  "setup",
-] as const;
-
-/**
- * Viewport-free preset dirs, pruned like PRESET_FEATURE_DIRS but listed
- * after showcase in prune plans (keeps the historic prune-plan substring
- * stable for the scaffolding contract tests).
- */
-const VIEWPORT_FREE_PRESET_DIRS = ["forms", "records", "settings"] as const;
-
-const PRESET_ROUTER_WIRING: Record<
-  string,
-  { component: string; componentFrom: string; presetSideEffect: string }
-> = {
-  "technical-ribbon": {
-    component: "TechnicalRibbonPage",
-    componentFrom: "../features/technical-ribbon/TechnicalRibbonPage",
-    presetSideEffect: "../features/technical-ribbon/technicalRibbonLayout",
-  },
-  ide: {
-    component: "IdeWorkbench",
-    componentFrom: "../features/ide/IdeWorkbench",
-    presetSideEffect: "../features/ide/idePreset",
-  },
-  studio: {
-    component: "StudioWorkbench",
-    componentFrom: "../features/studio/StudioWorkbench",
-    presetSideEffect: "../features/studio/studioPreset",
-  },
-  operator: {
-    component: "OperatorWorkbench",
-    componentFrom: "../features/operator/OperatorWorkbench",
-    presetSideEffect: "../features/operator/operatorPreset",
-  },
-  monitoring: {
-    component: "MonitoringWorkbench",
-    componentFrom: "../features/monitoring/MonitoringWorkbench",
-    presetSideEffect: "../features/monitoring/monitoringPreset",
-  },
-  setup: {
-    component: "SetupWorkbench",
-    componentFrom: "../features/setup/SetupWorkbench",
-    presetSideEffect: "../features/setup/setupPreset",
-  },
-  minimal: {
-    component: "MinimalWorkbench",
-    componentFrom: "../features/minimal/MinimalWorkbench",
-    presetSideEffect: "../features/minimal/minimalPreset",
-  },
-  forms: {
-    component: "FormsWorkbench",
-    componentFrom: "../features/forms/FormsWorkbench",
-    presetSideEffect: "../features/forms/formsPreset",
-  },
-  records: {
-    component: "RecordsWorkbench",
-    componentFrom: "../features/records/RecordsWorkbench",
-    presetSideEffect: "../features/records/recordsPreset",
-  },
-  settings: {
-    component: "SettingsWorkbench",
-    componentFrom: "../features/settings/SettingsWorkbench",
-    presetSideEffect: "../features/settings/settingsPreset",
-  },
-};
 
 /** Staging-relative files whose contents are rewritten for the pruned catalog. */
 const PRUNED_REWRITES = [
@@ -807,17 +742,6 @@ function presetSideEffectImports(keptPresets: string[]): string {
     .join("\n");
 }
 
-/** Load-bearing feature per preset for pruned assertions (viewport default). */
-const PRUNE_LOAD_BEARING: Record<string, string> = {
-  forms: "form",
-  records: "data-table",
-  settings: "form",
-};
-
-function pruneLoadBearing(id: string): string {
-  return PRUNE_LOAD_BEARING[id] ?? "viewport";
-}
-
 /** Pruned catalog test: only the kept presets are registered and coherent. */
 function prunedPresetsTest(keptPresets: string[]): string {
   const primary = keptPresets[0];
@@ -1127,6 +1051,7 @@ function renderDerivedReadme(options: {
     `  - \`bun run generate:feature\`, \`bun run generate:widget\`, \`bun run generate:command\`,`,
     `    \`bun run generate:tool\`, \`bun run generate:status-item\`, \`bun run generate:preset\``,
     `- \`bun run ai:context\` / \`bun run ai:context:check\` — regenerate / verify the generated context`,
+    `- Add a boilerplate preset later: \`bun run generate:add-preset -- --from <boilerplate-dir> --preset <id>\` (copies \`src/features/<id>\` with full wiring)`,
     ``,
     `## Docs`,
     ``,

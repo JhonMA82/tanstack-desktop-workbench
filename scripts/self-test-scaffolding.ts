@@ -390,6 +390,16 @@ function checkCase(parent: string, kase: Case): void {
       );
     }
   }
+  if (!existsSync(join(dest, "scripts", "generate-add-preset.ts"))) {
+    fail(
+      `Self-test failure (${kase.name}): derived project lost scripts/generate-add-preset.ts.`,
+    );
+  }
+  if (derivedPkg.scripts?.["generate:add-preset"] === undefined) {
+    fail(
+      `Self-test failure (${kase.name}): derived package.json lost the generate:add-preset script.`,
+    );
+  }
   for (const kept of [
     "scripts/generate-feature.ts",
     "scripts/generate-widget.ts",
@@ -517,6 +527,50 @@ function checkTypecheck(parent: string): Promise<void> {
   return runBounded();
 }
 
+function checkDerivedAddPreset(parent: string): void {
+  const dest = join(parent, "probe-min");
+  run(
+    `bun ${join(dest, "scripts", "generate-add-preset.ts")} -- --from ${REPO_ROOT} --preset ide`,
+    dest,
+  );
+  if (!existsSync(join(dest, "src", "features", "ide", "idePreset.ts"))) {
+    fail(
+      "Self-test failure (probe-min): derived generate:add-preset copied nothing.",
+    );
+  }
+  const router = readFileSync(join(dest, "src", "app", "router.tsx"), "utf8");
+  expectContains(router, `"ide": IdeWorkbench`, "probe-min add-preset router");
+  expectContains(
+    router,
+    "../features/ide/idePreset",
+    "probe-min add-preset router import",
+  );
+  const config = readFileSync(
+    join(dest, "src", "app", "workbench.config.ts"),
+    "utf8",
+  );
+  expectContains(config, `"ide"`, "probe-min add-preset union");
+  let marker: { presets?: string[] };
+  try {
+    marker = JSON.parse(
+      readFileSync(join(dest, ".boilerplate.json"), "utf8"),
+    ) as typeof marker;
+  } catch {
+    fail(
+      "Self-test failure (probe-min): .boilerplate.json is missing or invalid after add-preset.",
+    );
+  }
+  for (const id of ["minimal", "ide"]) {
+    if (!marker.presets?.includes(id)) {
+      fail(
+        `Self-test failure (probe-min): marker presets missing "${id}" after add-preset.`,
+      );
+    }
+  }
+  run(`bun ${join(dest, "scripts", "generate-ai-context.ts")} --check`, dest);
+  console.log("ok: derived generate:add-preset (probe-min + ide)");
+}
+
 function checkDerivedFeatureLoop(parent: string): void {
   const dest = join(parent, "probe-custom");
   run(
@@ -557,11 +611,12 @@ async function main(): Promise<void> {
     }
     await checkTypecheck(parent);
     checkDerivedFeatureLoop(parent);
+    checkDerivedAddPreset(parent);
   } finally {
     rmSync(parent, { recursive: true, force: true });
   }
   console.log(
-    `self-test:scaffolding passed (${CASES.length} cases + derived typechecks + feature loop).`,
+    `self-test:scaffolding passed (${CASES.length} cases + derived typechecks + feature loop + add-preset).`,
   );
 }
 

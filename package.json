@@ -18,6 +18,7 @@
     "generate:tool": "bun scripts/generate-tool.ts",
     "generate:status-item": "bun scripts/generate-status-item.ts",
     "generate:preset": "bun scripts/generate-preset.ts",
+    "generate:add-preset": "bun scripts/generate-add-preset.ts",
     "ai:context": "bun scripts/generate-ai-context.ts",
     "ai:context:check": "bun scripts/generate-ai-context.ts --check",
     "validate:architecture": "bun scripts/validate-architecture.ts",
@@ -26,6 +27,7 @@
     "validate": "bun run lint && bun run typecheck && bun test && bun run validate:architecture && bun run validate:workbench && bun run ai:context:check && bun run build"
   },
   "dependencies": {
+    "@juicesharp/rpiv-ask-user-question": "^2.10.1",
     "@tanstack/react-router": "1.170.35",
     "lucide-react": "1.45.0",
     "react": "19.3.0",
