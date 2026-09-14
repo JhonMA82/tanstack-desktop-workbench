@@ -34,6 +34,9 @@ export const KNOWN_FEATURES: readonly FeatureId[] = [
   "source-nav",
   "step-rail",
   "wizard-nav",
+  "form",
+  "data-table",
+  "detail",
 ];
 
 /**
@@ -46,7 +49,20 @@ const DEFAULT_LOAD_BEARING: readonly FeatureId[] = ["viewport"];
 
 const PRESET_LOAD_BEARING: Record<string, readonly FeatureId[]> = {
   monitoring: ["viewport", "tile-wall"],
+  forms: ["form"],
+  records: ["data-table"],
+  settings: ["form"],
 };
+
+/**
+ * Load-bearing capabilities for a preset: the preset's own `loadBearing`
+ * wins, then the preset registry map, then the viewport default.
+ */
+function loadBearingOf(preset: LayoutPreset): readonly FeatureId[] {
+  return (
+    preset.loadBearing ?? PRESET_LOAD_BEARING[preset.id] ?? DEFAULT_LOAD_BEARING
+  );
+}
 
 /**
  * Slot capability ids that can host each feature. A preset hosts a feature
@@ -83,6 +99,9 @@ const FEATURE_CAPABILITIES: Record<FeatureId, readonly string[]> = {
   "source-nav": ["source-nav"],
   "step-rail": ["step-rail"],
   "wizard-nav": ["wizard-nav"],
+  form: ["form"],
+  "data-table": ["data-table"],
+  detail: ["detail"],
 };
 
 export interface FeatureOverrides {
@@ -170,9 +189,8 @@ export function createFeatureRegistry(): FeatureRegistry {
         );
       }
     }
-    for (const loadBearing of PRESET_LOAD_BEARING[preset.id] ??
-      DEFAULT_LOAD_BEARING) {
-      if (!features.includes(loadBearing)) {
+    for (const loadBearing of loadBearingOf(preset)) {
+      if (!features.includes(loadBearing as string)) {
         errors.push(
           `Feature "${loadBearing}" is load-bearing for preset "${preset.id}" and cannot be disabled.`,
         );
@@ -292,8 +310,7 @@ export function validatePresetCombination(
     }
   }
 
-  for (const loadBearing of PRESET_LOAD_BEARING[preset.id] ??
-    DEFAULT_LOAD_BEARING) {
+  for (const loadBearing of loadBearingOf(preset)) {
     if (!features.includes(loadBearing)) {
       errors.push(
         `Feature "${loadBearing}" is load-bearing for preset "${preset.id}" and cannot be disabled.`,

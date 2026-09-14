@@ -5,7 +5,8 @@ import type { FeatureId } from "../workbench/types";
  * The manifest declares app metadata (name, preset, with/without, theme);
  * materializing a new application from it is the job of the project
  * generator, not of manual edits. Known preset ids: technical-ribbon, ide,
- * studio, operator, monitoring, setup, minimal; the with/without model
+ * studio, operator, monitoring, setup, minimal, forms, records, settings;
+ * the with/without model
  * adjusts the preset defaults while keeping the combination coherent.
  */
 export type WorkbenchLayoutId =
@@ -15,7 +16,10 @@ export type WorkbenchLayoutId =
   | "operator"
   | "monitoring"
   | "setup"
-  | "minimal";
+  | "minimal"
+  | "forms"
+  | "records"
+  | "settings";
 
 /** Theme id (see src/styles/themes/*.css). Applied to <html> data-theme. */
 export type ThemeId = "ocstudio" | "light";

@@ -1,14 +1,20 @@
 import { describe, expect, it } from "bun:test";
 import "../features/ide/idePreset";
 import { idePreset } from "../features/ide/idePreset";
+import "../features/forms/formsPreset";
+import { formsPreset } from "../features/forms/formsPreset";
 import "../features/minimal/minimalPreset";
 import { minimalPreset } from "../features/minimal/minimalPreset";
 import "../features/monitoring/monitoringPreset";
 import { monitoringPreset } from "../features/monitoring/monitoringPreset";
+import "../features/records/recordsPreset";
+import { recordsPreset } from "../features/records/recordsPreset";
 import "../features/operator/operatorPreset";
 import { operatorPreset } from "../features/operator/operatorPreset";
 import "../features/setup/setupPreset";
 import { setupPreset } from "../features/setup/setupPreset";
+import "../features/settings/settingsPreset";
+import { settingsPreset } from "../features/settings/settingsPreset";
 import "../features/studio/studioPreset";
 import { studioPreset } from "../features/studio/studioPreset";
 import "../features/technical-ribbon/technicalRibbonLayout";
@@ -27,6 +33,9 @@ const allPresets: LayoutPreset[] = [
   monitoringPreset,
   setupPreset,
   minimalPreset,
+  formsPreset,
+  recordsPreset,
+  settingsPreset,
 ];
 
 const expectedDefaults: Record<string, FeatureId[]> = {
@@ -71,6 +80,9 @@ const expectedDefaults: Record<string, FeatureId[]> = {
   ],
   setup: ["toolbar", "step-rail", "viewport", "wizard-nav", "statusbar"],
   minimal: ["toolbar", "viewport", "statusbar"],
+  forms: ["toolbar", "navigation", "form", "inspector", "statusbar"],
+  records: ["toolbar", "navigation", "data-table", "detail", "statusbar"],
+  settings: ["toolbar", "form", "statusbar"],
 };
 
 describe("preset defaults", () => {
@@ -84,7 +96,7 @@ describe("preset defaults", () => {
 });
 
 describe("preset registration", () => {
-  it("registers all seven presets and no legacy ids", () => {
+  it("registers all ten presets and no legacy ids", () => {
     for (const id of [
       "technical-ribbon",
       "ide",
@@ -93,6 +105,9 @@ describe("preset registration", () => {
       "monitoring",
       "setup",
       "minimal",
+      "forms",
+      "records",
+      "settings",
     ]) {
       expect(globalPresets.has(id)).toBe(true);
     }
@@ -116,6 +131,9 @@ describe("new feature ids", () => {
     "source-nav",
     "step-rail",
     "wizard-nav",
+    "form",
+    "data-table",
+    "detail",
   ];
 
   it("recognizes every new feature id", () => {
@@ -172,6 +190,44 @@ describe("load-bearing workspace", () => {
     expect(errors).toEqual([]);
     expect(features).not.toContain("notifications");
     expect(features).toContain("viewport");
+  });
+
+  it("errors when forms drops its load-bearing form", () => {
+    const { errors } = resolveFeatures(formsPreset, {
+      without: ["form"],
+    });
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.join("\n")).toMatch(
+      'Feature "form" is load-bearing for preset "forms"',
+    );
+  });
+
+  it("errors when records drops its load-bearing data table", () => {
+    const { errors } = resolveFeatures(recordsPreset, {
+      without: ["data-table"],
+    });
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.join("\n")).toMatch(
+      'Feature "data-table" is load-bearing for preset "records"',
+    );
+  });
+
+  it("errors when settings drops its load-bearing form", () => {
+    const { errors } = resolveFeatures(settingsPreset, {
+      without: ["form"],
+    });
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.join("\n")).toMatch(
+      'Feature "form" is load-bearing for preset "settings"',
+    );
+  });
+
+  it("needs no viewport in viewport-free presets", () => {
+    for (const preset of [formsPreset, recordsPreset, settingsPreset]) {
+      const { features, errors } = resolveFeatures(preset);
+      expect(errors).toEqual([]);
+      expect(features).not.toContain("viewport");
+    }
   });
 });
 

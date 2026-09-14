@@ -131,9 +131,55 @@ describe("resolveFeaturesOrThrow", () => {
   });
 });
 
+describe("per-preset loadBearing", () => {
+  const viewportFree: LayoutPreset = {
+    id: "forms-like",
+    label: "Forms-like",
+    slots: {
+      top: ["toolbar"],
+      left: [],
+      center: ["form"],
+      right: [],
+      bottom: ["status-bar"],
+    },
+    defaultFeatures: ["toolbar", "form", "statusbar"],
+    loadBearing: ["form"],
+  };
+
+  it("prefers preset.loadBearing over the viewport default", () => {
+    const errors = validatePresetCombination(viewportFree, [
+      "toolbar",
+      "form",
+      "statusbar",
+    ]);
+    expect(errors).toEqual([]);
+    expect(
+      validatePresetCombination(viewportFree, ["toolbar", "statusbar"])[0],
+    ).toMatch('Feature "form" is load-bearing for preset "forms-like"');
+  });
+
+  it("keeps the viewport default when loadBearing is absent", () => {
+    expect(
+      validatePresetCombination(technicalRibbonLike, ["ribbon"])[0],
+    ).toMatch('Feature "viewport" is load-bearing');
+  });
+
+  it("enforces the fallback chain in app registries too", () => {
+    const registry = createFeatureRegistry();
+    expect(() =>
+      registry.resolveFeaturesOrThrow(viewportFree, {
+        without: ["form"],
+      }),
+    ).toThrow('Feature "form" is load-bearing for preset "forms-like"');
+  });
+});
+
 describe("isKnownFeature", () => {
   it("recognizes known features and rejects the rest", () => {
     expect(isKnownFeature("ribbon")).toBe(true);
+    expect(isKnownFeature("form")).toBe(true);
+    expect(isKnownFeature("data-table")).toBe(true);
+    expect(isKnownFeature("detail")).toBe(true);
     expect(isKnownFeature("teleport")).toBe(false);
   });
 });

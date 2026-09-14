@@ -124,7 +124,10 @@ export type FeatureId =
   | "system-summary"
   | "source-nav"
   | "step-rail"
-  | "wizard-nav";
+  | "wizard-nav"
+  | "form"
+  | "data-table"
+  | "detail";
 
 /** Visual slot of a layout preset: where capabilities are composed. */
 export type LayoutSlotId = "top" | "left" | "center" | "right" | "bottom";
@@ -142,6 +145,12 @@ export interface LayoutPreset {
   slots: Record<LayoutSlotId, string[]>;
   /** Features enabled by default; adjustable via with/without overrides. */
   defaultFeatures: FeatureId[];
+  /**
+   * Load-bearing capabilities for this preset: disabling one is a
+   * validation error. Falls back to the preset registry map, then to
+   * the viewport default. Existing viewport presets omit it.
+   */
+  loadBearing?: FeatureId[];
 }
 
 /** Drawing-unit coordinates reported by the viewport. */

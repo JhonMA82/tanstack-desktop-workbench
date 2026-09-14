@@ -14,6 +14,12 @@ import { TechnicalRibbonPage } from "../features/technical-ribbon/TechnicalRibbo
 import "../features/ide/idePreset";
 import { MinimalWorkbench } from "../features/minimal/MinimalWorkbench";
 import "../features/minimal/minimalPreset";
+import { FormsWorkbench } from "../features/forms/FormsWorkbench";
+import "../features/forms/formsPreset";
+import { RecordsWorkbench } from "../features/records/RecordsWorkbench";
+import "../features/records/recordsPreset";
+import { SettingsWorkbench } from "../features/settings/SettingsWorkbench";
+import "../features/settings/settingsPreset";
 import { MonitoringWorkbench } from "../features/monitoring/MonitoringWorkbench";
 import "../features/monitoring/monitoringPreset";
 import { OperatorWorkbench } from "../features/operator/OperatorWorkbench";
@@ -51,6 +57,9 @@ const presetComponents: Record<string, PresetComponent> = {
   monitoring: MonitoringWorkbench,
   setup: SetupWorkbench,
   minimal: MinimalWorkbench,
+  forms: FormsWorkbench,
+  records: RecordsWorkbench,
+  settings: SettingsWorkbench,
 };
 
 const previewPresets = [
@@ -61,6 +70,9 @@ const previewPresets = [
   "monitoring",
   "setup",
   "minimal",
+  "forms",
+  "records",
+  "settings",
 ];
 
 /** Fullscreen frame shared by the code-based preview routes. */
