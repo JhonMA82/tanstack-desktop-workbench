@@ -209,6 +209,9 @@ registries before writing, stages in a sibling temp dir, and moves to the
 destination only at the end (`--force` replaces just projects carrying a
 valid `.boilerplate.json` marker). Full reference: `docs/scaffolding.md`.
 
+A derived project generated with one preset can gain more boilerplate presets later:
+`bun run generate:add-preset -- --from <boilerplate-dir> --preset <id>` (copies `src/features/<id>` with full wiring plus guided AI context; see "Adding a boilerplate preset to a derived project" in `docs/scaffolding.md`).
+
 ## Layout vs Features
 
 - **Layout** (`LayoutPreset` in `src/workbench/types.ts`, stored via
@@ -267,7 +270,7 @@ bun run ai:context:check  # fail when the file drifts (CI gate)
 
 Every generator (`generate:project`, `generate:feature`, `generate:widget`,
 `generate:command`, `generate:tool`, `generate:status-item`,
-`generate:preset`) refreshes the context automatically on success.
+`generate:preset`, `generate:add-preset`) refreshes the context automatically on success.
 
 ## Validation
 
@@ -455,6 +458,7 @@ const menu: MenuItem[] = [
 | `bun run lint` | `biome ci .` |
 | `bun test` | Unit + scaffolding tests |
 | `bun run generate:project -- <name> --preset <id> --theme <id>` | Materialize a derived app |
+| `bun run generate:add-preset -- --from <dir> --preset <id>` | Add a boilerplate preset to a derived app |
 | `bun run generate:feature -- <name>` | Scaffold a feature vertical |
 | `bun run generate:widget -- <name> --dock right` | Scaffold a widget |
 | `bun run generate:command -- <name>` | Scaffold a command |

@@ -297,6 +297,31 @@ Provenance marker written into every derived project:
     files, rewritten files) plus the cleanup summary (what the demo cleanup
     trims and deletes); `--force` keeps its marker-only policy unchanged.
 
+## Adding a boilerplate preset to a derived project
+
+A derived project generated with one preset can gain more boilerplate presets later:
+
+```bash
+bun run generate:add-preset -- --from ../tanstack-desktop-workbench --preset ide
+bun run generate:add-preset -- --from ../tanstack-desktop-workbench --preset ide,studio --dry-run
+```
+
+| Flag | Meaning |
+| --- | --- |
+| `--from` | Boilerplate source directory (must hold `src/features/<id>/*Preset.ts` for each id) |
+| `--preset` | Preset id(s) to add (repeatable, comma-separated; validated against the source ids) |
+| `--force` | Replace an existing `src/features/<id>` dir and re-apply router wiring |
+| `--dry-run` | Validate and report without writing |
+
+Behavior: validates every id against the source `src/features/<id>/*Preset.ts` files (unknown ids fail loudly), copies each `src/features/<id>` tree (refuses existing dirs without `--force`), patches `src/app/router.tsx` (component import plus side-effect preset import plus `presetComponents` entry with exact-match drift guards), widens the `WorkbenchLayoutId` union in `src/app/workbench.config.ts`, updates the catalog assertions in `src/workbench/presets.test.ts`, `src/app/workbench.config.test.ts`, and `scripts/ai-context.test.ts` (fail-loud guards covering both source-shape and pruned derived-shape files), updates the `.boilerplate.json` kept-preset list when present, and refreshes AI context. Never touches themes, shell core, or existing preset files.
+
+### --with-presets versus add-preset
+
+- `--with-presets` (on `generate:project`) keeps extra presets at materialization time: the derived project ships with all of them from the start.
+- `generate:add-preset` adds boilerplate presets after materialization: use it when the derived project already exists and needs another preset from the boilerplate checkout.
+
+Both paths converge on the same wiring (copied feature dir, router entry, widened union, updated catalog tests, refreshed context); switching between kept presets stays a `layout` edit in `src/app/workbench.config.ts`.
+
 ## Extension generators
 
 ```bash

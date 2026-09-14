@@ -41,6 +41,7 @@ generator_commands:
   - bun run generate:tool -- <name> --command <id> [--group G] [--feature F]
   - bun run generate:status-item -- <name>
   - bun run generate:preset -- <name>
+  - bun run generate:add-preset -- --from <boilerplate-dir> --preset <id>[,<id>] [--force] [--dry-run]
   - bun run ai:context
   - bun run ai:context:check
 invariants:

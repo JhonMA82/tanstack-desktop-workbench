@@ -20,7 +20,7 @@ Instance state (app, preset, theme, features, registrations) lives in
   disable load-bearing features.
 - Run the generators before hand-rolling repetitive wiring:
   `generate:feature`, `generate:widget`, `generate:command`, `generate:tool`
-  (optionally `generate:status-item`, `generate:preset`).
+  (optionally `generate:status-item`, `generate:preset`, `generate:add-preset`).
 - Load context selectively; verify before closing.
 
 ## Minimal reading path

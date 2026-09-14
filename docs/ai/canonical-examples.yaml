@@ -52,6 +52,15 @@ examples:
     see_also:
     - src/features/showcase/LayersPanel.tsx
     note: DataTable with DataColumn defs + getRowId; single-select active row, emptyText for the empty case; never use a raw <table>.
+  - id: add-preset-to-derived
+    kind: recipe
+    when: adding a boilerplate preset to a derived project
+    paths:
+    - scripts/generate-add-preset.ts
+    - scripts/_lib/preset-wiring.ts
+    - src/app/router.tsx
+    - src/app/workbench.config.ts
+    note: copy src/features/<id> from the boilerplate checkout with bun run generate:add-preset -- --from <boilerplate-dir> --preset <id>; wires router plus WorkbenchLayoutId union plus pruned catalog tests, then refreshes AI context.
   - id: controls-dialog
     kind: controls-recipe
     when: modal confirm/info flows

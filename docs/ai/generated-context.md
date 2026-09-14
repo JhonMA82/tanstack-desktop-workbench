@@ -14,9 +14,9 @@
 - tools: aligned, angular, arc, circle, copy, cui, dim, extents, freeze, layers, leader, line, linear, loadApp, lock, mirror, mleader, move, mtext, palettes, pan, poly, radius, rect, rotate, runScript, select, shaded, style, text, trim, viewports, wire2d, xray, zoom
 - status items: grid, ortho, osnap
 - presets: forms, ide, minimal, monitoring, operator, records, settings, setup, studio, technical-ribbon
-- scripts: ai:context, ai:context:check, build, dev, generate:command, generate:feature, generate:preset, generate:project, generate:status-item, generate:tool, generate:widget, lint, self-test:scaffolding, test, typecheck, validate, validate:architecture, validate:workbench
+- scripts: ai:context, ai:context:check, build, dev, generate:add-preset, generate:command, generate:feature, generate:preset, generate:project, generate:status-item, generate:tool, generate:widget, lint, self-test:scaffolding, test, typecheck, validate, validate:architecture, validate:workbench
 - templates: inline templates in scripts/generate-*.ts (no templates dir)
-- digest: 4e878770d5a3fd39
+- digest: 0e4501af1e4b88af
 
 ## Presets (defaults)
 

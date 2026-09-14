@@ -289,6 +289,8 @@ part of the shell.
 
 ## How to add a preset
 
+> Derived project already generated with one preset? See "Adding a boilerplate preset to a derived project" in `docs/scaffolding.md`: `bun run generate:add-preset -- --from <boilerplate-dir> --preset <id>` copies the boilerplate preset with full wiring. `generate:preset` below scaffolds a new empty preset skeleton instead.
+
 Prefer the generator (coherent skeleton + registration function):
 
 ```bash

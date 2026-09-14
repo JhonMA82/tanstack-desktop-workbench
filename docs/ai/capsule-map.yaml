@@ -25,4 +25,11 @@ capsules:
     paths:
       - src/features/ide/idePreset.ts
       - src/features/ide/IdeWorkbench.tsx
+  - triggers: [add-preset, add preset, with-presets, derived preset, boilerplate preset]
+    capsule: add-preset-to-derived
+    paths:
+      - scripts/generate-add-preset.ts
+      - scripts/_lib/preset-wiring.ts
+      - src/app/router.tsx
+      - src/app/workbench.config.ts
 default: generated-context.md plus project-map.yaml, then the files directly affected.
