@@ -2,33 +2,42 @@
 # Generated context — Technical Workbench
 
 - package: tanstack-workbench@0.9.0 (boilerplate source)
-- stack: bun@1.4.0, @biomejs/biome@2.5.13, @tailwindcss/vite@4.3.3, @tanstack/react-router@1.170.35, @types/react@19.3.0, @types/react-dom@19.3.0, @vitejs/plugin-react@6.1.1, bun-types@1.4.2, lucide-react@1.45.0, react@19.3.0, react-dom@19.3.0, tailwindcss@4.3.3, typescript@5.9.3, vite@8.3.0
+- stack: bun@1.4.0, @biomejs/biome@2.5.13, @juicesharp/rpiv-ask-user-question@^2.10.1, @tailwindcss/vite@4.3.3, @tanstack/react-router@1.170.35, @types/react@19.3.0, @types/react-dom@19.3.0, @vitejs/plugin-react@6.1.1, bun-types@1.4.2, lucide-react@1.45.0, react@19.3.0, react-dom@19.3.0, tailwindcss@4.3.3, typescript@5.9.3, vite@8.3.0
 - preset: technical-ribbon (layout technical-ribbon)
 - theme: ocstudio (files: light, ocstudio)
 - with: []
 - without: []
-- resolved features: command-bar, inspector, ribbon, statusbar, tool-rail, viewport (30 known core)
+- resolved features: command-bar, inspector, ribbon, statusbar, tool-rail, viewport (33 known core)
 - custom features: none
 - widgets: console, history, jobs, layers, measurements, navigator, notifications, objects, properties
 - commands: 41 registered (annotate.aligned, annotate.angular, annotate.dim, annotate.leader, annotate.linear, annotate.mleader, annotate.mtext, annotate.radius, annotate.style, annotate.text, app.cui, app.load, …)
 - tools: aligned, angular, arc, circle, copy, cui, dim, extents, freeze, layers, leader, line, linear, loadApp, lock, mirror, mleader, move, mtext, palettes, pan, poly, radius, rect, rotate, runScript, select, shaded, style, text, trim, viewports, wire2d, xray, zoom
 - status items: grid, ortho, osnap
-- presets: ide, minimal, monitoring, operator, setup, studio, technical-ribbon
+- presets: forms, ide, minimal, monitoring, operator, records, settings, setup, studio, technical-ribbon
 - scripts: ai:context, ai:context:check, build, dev, generate:command, generate:feature, generate:preset, generate:project, generate:status-item, generate:tool, generate:widget, lint, self-test:scaffolding, test, typecheck, validate, validate:architecture, validate:workbench
 - templates: inline templates in scripts/generate-*.ts (no templates dir)
-- digest: 2ba4f770808689cf
+- digest: 4e878770d5a3fd39
 
 ## Presets (defaults)
 
+- forms (Forms): form, inspector, navigation, statusbar, toolbar
 - ide (IDE): activity-bar, bottom-panel, console, explorer, output, statusbar, tabs, toolbar, viewport
 - minimal (Minimal): statusbar, toolbar, viewport
 - monitoring (Monitoring): alert-strip, event-stream, source-nav, statusbar, system-summary, tile-wall, viewport
 - operator (Operator): alarms, controls, navigation, notifications, statusbar, system-status, viewport
+- records (Records): data-table, detail, navigation, statusbar, toolbar
+- settings (Settings): form, statusbar, toolbar
 - setup (Setup): statusbar, step-rail, toolbar, viewport, wizard-nav
 - studio (Studio): bottom-panel, explorer, hierarchy, inspector, timeline, toolbar, viewport, workspace-selector
 - technical-ribbon (Technical Ribbon): command-bar, inspector, ribbon, statusbar, tool-rail, viewport
 
 ## Preset patterns (structure)
+
+### `forms` · dir `src/features/forms`
+
+- composition: top=[toolbar] left=[navigation] center=[form] right=[inspector] bottom=[status-bar] | features: toolbar, navigation, form, inspector, statusbar
+- shell: `FormsWorkbench.tsx`
+- edit: slots→`formsPreset.ts`; shell→`FormsWorkbench.tsx`
 
 ### `ide` · dir `src/features/ide`
 
@@ -53,6 +62,18 @@
 - composition: top=[system-status] left=[navigation] center=[viewport] right=[controls] bottom=[alarms, notifications, output, status-bar] | features: system-status, navigation, viewport, controls, alarms, notifications, statusbar
 - shell: `OperatorWorkbench.tsx`
 - edit: slots→`operatorPreset.ts`; shell→`OperatorWorkbench.tsx`
+
+### `records` · dir `src/features/records`
+
+- composition: top=[toolbar] left=[navigation] center=[data-table] right=[detail] bottom=[status-bar] | features: toolbar, navigation, data-table, detail, statusbar
+- shell: `RecordsWorkbench.tsx`
+- edit: slots→`recordsPreset.ts`; shell→`RecordsWorkbench.tsx`
+
+### `settings` · dir `src/features/settings`
+
+- composition: top=[toolbar] center=[form] bottom=[status-bar] | features: toolbar, form, statusbar
+- shell: `SettingsWorkbench.tsx`
+- edit: slots→`settingsPreset.ts`; shell→`SettingsWorkbench.tsx`
 
 ### `setup` · dir `src/features/setup`
 

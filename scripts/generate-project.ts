@@ -359,7 +359,7 @@ function renderWorkbenchConfig(options: {
 
 /**
  * Minimal-derived-project pruning. ALL of this runs on STAGING copies;
- * the boilerplate source is never modified (it keeps all 7 presets and
+ * the boilerplate source is never modified (it keeps all 10 presets and
  * both themes, and `bun run validate` stays green there).
  *
  * Per-preset file strategy (verified by grep on the real source):
@@ -385,6 +385,13 @@ const PRESET_FEATURE_DIRS = [
   "monitoring",
   "setup",
 ] as const;
+
+/**
+ * Viewport-free preset dirs, pruned like PRESET_FEATURE_DIRS but listed
+ * after showcase in prune plans (keeps the historic prune-plan substring
+ * stable for the scaffolding contract tests).
+ */
+const VIEWPORT_FREE_PRESET_DIRS = ["forms", "records", "settings"] as const;
 
 const PRESET_ROUTER_WIRING: Record<
   string,
@@ -425,6 +432,21 @@ const PRESET_ROUTER_WIRING: Record<
     componentFrom: "../features/minimal/MinimalWorkbench",
     presetSideEffect: "../features/minimal/minimalPreset",
   },
+  forms: {
+    component: "FormsWorkbench",
+    componentFrom: "../features/forms/FormsWorkbench",
+    presetSideEffect: "../features/forms/formsPreset",
+  },
+  records: {
+    component: "RecordsWorkbench",
+    componentFrom: "../features/records/RecordsWorkbench",
+    presetSideEffect: "../features/records/recordsPreset",
+  },
+  settings: {
+    component: "SettingsWorkbench",
+    componentFrom: "../features/settings/SettingsWorkbench",
+    presetSideEffect: "../features/settings/settingsPreset",
+  },
 };
 
 /** Staging-relative files whose contents are rewritten for the pruned catalog. */
@@ -450,6 +472,9 @@ function prunePlan(
         (dir) => `src/features/${dir}`,
       ),
       "src/features/showcase",
+      ...VIEWPORT_FREE_PRESET_DIRS.filter(
+        (dir) => !keptPresets.includes(dir),
+      ).map((dir) => `src/features/${dir}`),
     ],
     themeFiles: knownThemes
       .filter((id) => id !== theme)
@@ -782,6 +807,17 @@ function presetSideEffectImports(keptPresets: string[]): string {
     .join("\n");
 }
 
+/** Load-bearing feature per preset for pruned assertions (viewport default). */
+const PRUNE_LOAD_BEARING: Record<string, string> = {
+  forms: "form",
+  records: "data-table",
+  settings: "form",
+};
+
+function pruneLoadBearing(id: string): string {
+  return PRUNE_LOAD_BEARING[id] ?? "viewport";
+}
+
 /** Pruned catalog test: only the kept presets are registered and coherent. */
 function prunedPresetsTest(keptPresets: string[]): string {
   const primary = keptPresets[0];
@@ -792,7 +828,7 @@ function prunedPresetsTest(keptPresets: string[]): string {
     if (!${toCamel(id)}) {
       throw new Error('Kept preset "${id}" is not registered');
     }
-    expect(resolveFeaturesOrThrow(${toCamel(id)})).toContain("viewport");`,
+    expect(resolveFeaturesOrThrow(${toCamel(id)})).toContain("${pruneLoadBearing(id)}");`,
     )
     .join("\n\n");
   return `import { describe, expect, it } from "bun:test";
@@ -802,7 +838,7 @@ import { globalPresets } from "./layouts";
 
 /**
  * Preset catalog (pruned derived project): only the kept presets
- * (${keptList}) ship. The boilerplate source asserts all seven presets;
+ * (${keptList}) ship. The boilerplate source asserts all ten presets;
  * only staging copies are rewritten here. Switching presets is a layout value
  * edit in src/app/workbench.config.ts, not a catalog change.
  */
@@ -860,7 +896,10 @@ describe("workbench manifest (pruned)", () => {
       throw new Error("Manifest preset is not registered");
     }
     const features = resolveFeaturesOrThrow(kept, workbenchConfig);
-    expect(features).toContain("viewport");
+    const loadBearing = kept.loadBearing ?? ["${pruneLoadBearing(primary)}"];
+    for (const feature of loadBearing) {
+      expect(features).toContain(feature);
+    }
   });
 });
 `;
@@ -870,7 +909,7 @@ describe("workbench manifest (pruned)", () => {
  * Prune staging to the minimal derived project: delete unchosen preset
  * dirs + showcase, delete unchosen theme files, rewrite the catalog
  * enumerations. Custom `src/features/*` dirs (app extensions created via
- * generate:feature) are KEPT: only the seven known preset dirs and
+ * generate:feature) are KEPT: only the ten known preset dirs and
  * showcase are ever removed.
  */
 /**
@@ -888,6 +927,12 @@ function prunedAiContextTest(
     .sort()
     .map((id) => `"${id}"`)
     .join(", ");
+  const primaryLoadBearing =
+    primary === "forms" || primary === "settings"
+      ? `"form"`
+      : primary === "records"
+        ? `"data-table"`
+        : `"viewport"`;
   return `/**
  * AI context tests (pruned derived project): the snapshot is built from the
  * real derived state, generation is deterministic, and --check detects drift.
@@ -911,9 +956,9 @@ describe("ai:context snapshot", () => {
     expect(snapshot.packageName).toBe("${projectName}");
     expect(snapshot.preset).toBe("${primary}");
     expect(snapshot.theme).toBe("${theme}");
-    expect(snapshot.presetIds).toEqual([${sortedList}]);
-    expect(snapshot.themes).toEqual(["${theme}"]);
-    expect(snapshot.resolvedFeatures).toContain("viewport");
+        expect(snapshot.presetIds).toEqual([${sortedList}]);
+        expect(snapshot.themes).toEqual(["${theme}"]);
+        expect(snapshot.resolvedFeatures).toContain(${primaryLoadBearing});
     // Registry content ships with preset files: the trimmed
     // technical-ribbon example carries a minimal set of
     // widget/command/tool/status registrations, so other derived
@@ -1112,12 +1157,12 @@ function renderDerivedReadme(options: {
  * defs, every tool command is registered, and no unused imports survive
  * (the derived project must pass strict tsc + lint + tests).
  *
- * Other presets (ide/studio/operator/monitoring/setup/minimal) carry no
+ * Other presets (ide/studio/operator/monitoring/setup/minimal/forms/records/settings) carry no
  * demo command catalog: verified by grep on the real source, ide/studio/
  * operator render DemoWidgets widget components structurally (no demo
  * command/tool registrations, no DemoGeometry), monitoring/setup ship
  * local structural data (monitoringDemo.ts tile/alert types, setupDemo.ts
- * wizard validation), and minimal is clean. They are kept as-is; only
+ * wizard validation), and minimal/forms/records/settings are clean. They are kept as-is; only
  * technical-ribbon is rewritten.
  */
 const RIBBON_CLEANUP_TOOLS = ["select", "line", "circle"] as const;
@@ -1667,7 +1712,7 @@ function pruneStagingToMinimal(
 ): void {
   const primary = keptPresets[0];
   const featuresDir = join(staging, "src", "features");
-  for (const dir of PRESET_FEATURE_DIRS) {
+  for (const dir of [...PRESET_FEATURE_DIRS, ...VIEWPORT_FREE_PRESET_DIRS]) {
     if (!keptPresets.includes(dir)) {
       removeDir(join(featuresDir, dir));
     }

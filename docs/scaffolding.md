@@ -114,7 +114,7 @@ Provenance marker written into every derived project:
     theme. The prune runs as a transform step on the STAGING copy
     (`pruneStagingToMinimal` in `scripts/generate-project.ts`); the
     `SOURCE_ONLY` set above stays unchanged and the boilerplate source keeps
-    all 7 presets and both themes (`bun run validate` stays green there).
+    all 10 presets and both themes (`bun run validate` stays green there).
 
     Switching presets inside a derived app is configuration, not generation:
     set the `layout` key in `src/app/workbench.config.ts` to any kept preset
@@ -278,12 +278,14 @@ Provenance marker written into every derived project:
     trimmed `technicalRibbonCommands.test.ts` (same selection/sync/guard
     coverage, minimal command set).
 
-    Other presets (`ide`/`studio`/`operator`/`monitoring`/`setup`/`minimal`)
+    Other presets (`ide`/`studio`/`operator`/`monitoring`/`setup`/`minimal`/
+    `forms`/`records`/`settings`)
     carry no demo command catalog (verified by grep: `ide`/`studio`/
     `operator` render `DemoWidgets` widget components structurally with no
     demo command/tool registrations and no `DemoGeometry`;
     `monitoring`/`setup` ship local structural data — `monitoringDemo.ts`
-    tile/alert types, `setupDemo.ts` wizard validation; `minimal` is clean),
+    tile/alert types, `setupDemo.ts` wizard validation; `minimal`/
+    `forms`/`records`/`settings` are clean),
     so they are kept as-is — only `technical-ribbon` is rewritten.
 
     The derived AI context reflects the trimmed preset automatically: it is
@@ -321,8 +323,10 @@ bun run generate:preset -- custom-layout
   `--feature` (required). Declarative: resolves the command, holds no
   logic. Warns when the command is not registered anywhere under `src/`.
 - `generate:status-item` takes `--kind toggle|readout` and `--feature`.
-- `generate:preset` scaffolds a coherent `LayoutPreset` module (viewport
-  load-bearing, every default hosted). Adding it to `presetComponents` in
+- `generate:preset` scaffolds a coherent `LayoutPreset` module (per-preset
+  load-bearing via the optional `loadBearing` field — `viewport` by
+  default, `form`/`data-table` for viewport-free presets — every default
+  hosted). Adding it to `presetComponents` in
   `src/app/router.tsx` stays an explicit manual step.
 
 Every generator prints next steps after succeeding. AI context refresh is

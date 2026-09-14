@@ -42,10 +42,13 @@ describe("ai:context snapshot", () => {
     expect(snapshot.preset).toBe("technical-ribbon");
     expect(snapshot.theme).toBe("ocstudio");
     expect(snapshot.presetIds).toEqual([
+      "forms",
       "ide",
       "minimal",
       "monitoring",
       "operator",
+      "records",
+      "settings",
       "setup",
       "studio",
       "technical-ribbon",
@@ -81,10 +84,13 @@ describe("ai:context preset patterns", () => {
       snapshot.presetIds,
     );
     expect(snapshot.presetPatterns.map((pattern) => pattern.id)).toEqual([
+      "forms",
       "ide",
       "minimal",
       "monitoring",
       "operator",
+      "records",
+      "settings",
       "setup",
       "studio",
       "technical-ribbon",
@@ -136,6 +142,32 @@ describe("ai:context preset patterns", () => {
     expect(minimal?.ribbonFile).toBeUndefined();
     expect(minimal?.slots.center).toContain("viewport");
     expect(minimal?.shellFiles).toContain("MinimalWorkbench.tsx");
+  });
+
+  it("describes viewport-free presets via form/table slots", async () => {
+    const { snapshot } = await buildAiContext(REPO_ROOT);
+    const forms = snapshot.presetPatterns.find(
+      (pattern) => pattern.id === "forms",
+    );
+    expect(forms?.slots.center).toContain("form");
+    expect(forms?.defaultFeatures).toContain("form");
+    expect(forms?.shellFiles).toContain("FormsWorkbench.tsx");
+    const records = snapshot.presetPatterns.find(
+      (pattern) => pattern.id === "records",
+    );
+    expect(records?.slots.center).toContain("data-table");
+    expect(records?.defaultFeatures).toContain("detail");
+    expect(records?.shellFiles).toContain("RecordsWorkbench.tsx");
+    const settings = snapshot.presetPatterns.find(
+      (pattern) => pattern.id === "settings",
+    );
+    expect(settings?.slots.center).toContain("form");
+    expect(settings?.shellFiles).toContain("SettingsWorkbench.tsx");
+    for (const pattern of [forms, records, settings]) {
+      expect(Object.values(pattern?.slots ?? {}).flat()).not.toContain(
+        "viewport",
+      );
+    }
   });
 
   it("points only at files that exist on disk", async () => {

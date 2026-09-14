@@ -51,7 +51,10 @@ import type { LayoutPreset } from "../../workbench/types";
  * {{LABEL}} preset: slim toolbar over a plain workspace with a status bar.
  * Declares composition only; domain content comes from registered commands,
  * tools, widgets, and status items. Adjust slots/defaultFeatures, keeping
- * every default feature hosted by a slot and "viewport" load-bearing.
+ * every default feature hosted by a slot. Most presets keep "viewport"
+ * load-bearing; viewport-free presets declare their own loadBearing
+ * (e.g. forms/settings use "form", records uses "data-table") via the
+ * optional LayoutPreset.loadBearing field.
  */
 export const {{CAMEL}}Preset: LayoutPreset = {
   id: "{{ID}}",

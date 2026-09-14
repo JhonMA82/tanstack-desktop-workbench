@@ -1,6 +1,6 @@
 # Preset catalog
 
-Seven declarative layout presets compose the same shell. `LayoutPreset`
+Ten declarative layout presets compose the same shell. `LayoutPreset`
 (`slots` + `defaultFeatures`) is the single canonical model: a preset declares
 **composition** (which capability ids live in each visual slot plus default
 features); it never implements domain logic. Features declare **capabilities**
@@ -127,6 +127,56 @@ fixed ordered list (see "setup: when a linear wizard fits" below).
 └──────────────────────────────────────────────────────┘
 ```
 
+### forms
+
+```text
+┌──────────────────────────────────────────────────────┐
+│ Toolbar                                              │
+├──────────┬─────────────────────────────┬─────────────┤
+│ Naviga-  │                             │ Inspector   │
+│ tion     │           Form              │             │
+├──────────┴─────────────────────────────┴─────────────┤
+│ Status bar                                           │
+└──────────────────────────────────────────────────────┘
+```
+
+Viewport-free: the form is the workspace, so `form` is load-bearing.
+No viewport, no ribbon, no docked panels.
+
+### records
+
+```text
+┌──────────────────────────────────────────────────────┐
+│ Toolbar                                              │
+├──────────┬─────────────────────────────┬─────────────┤
+│ Naviga-  │                             │ Detail      │
+│ tion     │        Data table           │             │
+├──────────┴─────────────────────────────┴─────────────┤
+│ Status bar                                           │
+└──────────────────────────────────────────────────────┘
+```
+
+Viewport-free: the data table is the workspace, so `data-table` is
+load-bearing. The detail panel shows the selected row, never a viewport.
+
+### settings
+
+```text
+┌──────────────────────────────────────────────────────┐
+│ Toolbar                                              │
+├──────────────────────────────────────────────────────┤
+│                                                      │
+│              ┌──────────────┐                        │
+│              │    Form      │                        │
+│              └──────────────┘                        │
+├──────────────────────────────────────────────────────┤
+│ Status bar                                           │
+└──────────────────────────────────────────────────────┘
+```
+
+Viewport-free: a centered form is the workspace, so `form` is
+load-bearing. No navigation, no inspector, no viewport.
+
 ## Defaults table
 
 | Preset | Defaults |
@@ -138,6 +188,9 @@ fixed ordered list (see "setup: when a linear wizard fits" below).
 | monitoring | system-summary, source-nav, tile-wall, viewport, alert-strip, event-stream, statusbar |
 | setup | toolbar, step-rail, viewport, wizard-nav, statusbar |
 | minimal | toolbar, viewport, statusbar |
+| forms | toolbar, navigation, form, inspector, statusbar |
+| records | toolbar, navigation, data-table, detail, statusbar |
+| settings | toolbar, form, statusbar |
 
 ## Feature catalog
 
@@ -148,8 +201,9 @@ Ribbon family: `ribbon`, `tool-rail`, `command-bar`, `command-palette`,
 `controls`, `alarms`, `notifications`. Monitoring (observe-only):
 `system-summary`, `source-nav`, `tile-wall`, `alert-strip`,
 `event-stream`. Wizard (step-driven):
-`step-rail`, `wizard-nav`. Core: `viewport` (load-bearing),
-`statusbar`.
+`step-rail`, `wizard-nav`. Forms and data: `form`, `data-table`,
+`detail`. Core: `viewport` (load-bearing for the seven viewport
+presets), `statusbar`.
 
 ## with / without semantics
 
@@ -161,8 +215,15 @@ throws a readable multi-line error for incoherent combinations.
 ## Validation rules
 
 1. Unknown feature ids are rejected (in `with`, `without`, or explicit sets).
-2. `viewport` is load-bearing: presets without it are incoherent, so disabling
-   it is always an error (e.g. `minimal` + `without: ["viewport"]` fails).
+2. Every preset has a load-bearing workspace: `preset.loadBearing` wins,
+   then the preset registry map, then the `viewport` default. The seven
+   viewport presets (including `monitoring`, which additionally treats
+   `tile-wall` as load-bearing) reject disabling `viewport`; the
+   viewport-free presets reject disabling their own workspace instead
+   (`form` for `forms`/`settings`, `data-table` for `records`).
+   Disabling a load-bearing capability is always an error
+   (e.g. `minimal` + `without: ["viewport"]` fails,
+   `forms` + `without: ["form"]` fails).
 3. Every enabled feature must be hostable: at least one slot of the preset
    must declare a matching capability, otherwise the combination is rejected
    with an explanation instead of rendering a broken layout.
@@ -215,7 +276,7 @@ Rules:
 ```ts
 {
   appName: "My App",
-  layout: "ide", // technical-ribbon | ide | studio | operator | monitoring | setup | minimal
+  layout: "ide", // technical-ribbon | ide | studio | operator | monitoring | setup | minimal | forms | records | settings
   with: ["notifications"], // extras on top of the preset defaults
   without: ["secondary-sidebar"], // removals that stay coherent
   theme: "ocstudio",
@@ -242,9 +303,11 @@ Then manually:
 2. Add the layout id to `WorkbenchLayoutId` and one entry to
    `presetComponents` in `src/app/router.tsx`.
 3. Extend `FeatureId` / `KNOWN_FEATURES` / `FEATURE_CAPABILITIES` only when the
-   preset needs a capability no slot can host yet.
-4. Cover it in `src/workbench/presets.test.ts`: defaults resolve, `without`
-   viewport errors, every new id is hostable.
+   preset needs a capability no slot can host yet. Viewport-free presets
+   declare their workspace via the optional `LayoutPreset.loadBearing`
+   field instead of defaulting to `viewport`.
+4. Cover it in `src/workbench/presets.test.ts`: defaults resolve, dropping
+   the preset's load-bearing capability errors, every new id is hostable.
 
 ## How to add a feature
 
@@ -257,8 +320,9 @@ App features (no core edits): register outside the core via
 shared `globalFeatures`), then resolve with the registry's
 `resolveFeatures(preset, { with, without })`. Unknown ids, duplicate ids
 (core or registered), empty capability lists, unhostable features, and
-disabled load-bearing capabilities (`viewport` always; `viewport` + `tile-wall`
-for `monitoring`) all fail fast.
+disabled load-bearing capabilities (`viewport` for the viewport presets;
+`viewport` + `tile-wall` for `monitoring`; `form` for `forms`/`settings`,
+`data-table` for `records`) all fail fast.
 
 Gate its UI on `hasFeature`; ensure the layout stays coherent without it.
 
